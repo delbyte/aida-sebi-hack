@@ -53,7 +53,7 @@ export default function ProfileForm() {
     if (data?.profile) {
       setForm({
         full_name: data.profile.full_name ?? "",
-        goals: data.profile.goals ?? "",
+        goals: data.profile.goals?.primary ?? "",
         risk_tolerance: data.profile.risk_tolerance ?? 5,
         monthly_income: data.profile.monthly_income ?? "",
         currency: data.profile.currency ?? "INR",
@@ -79,7 +79,16 @@ export default function ProfileForm() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${idToken}`,
         },
-        body: JSON.stringify({ ...form, userId }),
+        body: JSON.stringify({
+          ...form,
+          goals: {
+            primary: form.goals,
+            secondary: [],
+            target_amount: 0,
+            monthly_savings_target: 0
+          },
+          userId
+        }),
       })
       if (res.ok) {
         await mutate()

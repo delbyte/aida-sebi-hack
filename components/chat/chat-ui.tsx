@@ -95,7 +95,7 @@ export default function ChatUI() {
         <CardContent className="p-4 text-sm text-muted-foreground">
           {profData?.profile ? (
             <p>
-              Personalized to {profData.profile.full_name || "you"} | Goals: {profData.profile.goals || "—"} | Currency:{" "}
+              Personalized to {profData.profile.full_name || "you"} | Goals: {profData.profile.goals?.primary || "—"} | Currency:{" "}
               {profData.profile.currency || "—"}
             </p>
           ) : (

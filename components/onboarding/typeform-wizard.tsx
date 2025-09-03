@@ -67,8 +67,6 @@ export function TypeformWizard() {
       if (res.ok) {
         const responseData = await res.json()
         console.log('✅ Onboarding save successful')
-        // Save to localStorage
-        localStorage.setItem("profile", JSON.stringify(responseData.profile))
         router.push("/chat")
       } else {
         const errorText = await res.text()

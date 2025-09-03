@@ -11,7 +11,25 @@ import { onAuthStateChanged } from "firebase/auth"
 
 type Message = { role: "user" | "assistant"; content: string }
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json())
+const fetcher = async (url: string) => {
+  const user = auth.currentUser
+  if (!user) {
+    throw new Error("No authenticated user")
+  }
+
+  const idToken = await user.getIdToken()
+  const response = await fetch(url, {
+    headers: {
+      "Authorization": `Bearer ${idToken}`,
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`)
+  }
+
+  return response.json()
+}
 
 export default function ChatUI() {
   const [userId, setUserId] = React.useState<string | null>(null)

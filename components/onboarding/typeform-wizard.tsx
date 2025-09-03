@@ -6,11 +6,14 @@ import { Input } from "@/components/ui/input"
 import { Slider } from "@/components/ui/slider"
 import { Textarea } from "@/components/ui/textarea"
 import { useRouter } from "next/navigation"
+import { auth } from "@/lib/firebase"
+import { onAuthStateChanged, User } from "firebase/auth"
 
 export function TypeformWizard() {
   const router = useRouter()
   const [step, setStep] = React.useState(0)
   const [saving, setSaving] = React.useState(false)
+  const [user, setUser] = React.useState<User | null>(null)
   const [data, setData] = React.useState({
     full_name: "",
     goals: "",
@@ -18,6 +21,18 @@ export function TypeformWizard() {
     monthly_income: "",
     currency: "INR",
   })
+
+  React.useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      console.log('🔑 Auth state changed in onboarding:', currentUser?.uid, currentUser?.email)
+      setUser(currentUser)
+      if (!currentUser) {
+        console.log('❌ No authenticated user, redirecting to home')
+        router.push("/")
+      }
+    })
+    return unsubscribe
+  }, [router])
 
   function next() {
     setStep((s) => Math.min(s + 1, 4))
@@ -27,19 +42,40 @@ export function TypeformWizard() {
   }
 
   async function save() {
+    if (!user) {
+      console.error("❌ No authenticated user")
+      return
+    }
+
     setSaving(true)
     try {
+      console.log('🔑 Getting ID token for onboarding save, user:', user.uid, user.email)
+      const idToken = await user.getIdToken()
+      console.log('✅ Got ID token for onboarding, length:', idToken.length)
+
+      console.log('📤 Making POST request to /api/profile from onboarding')
       const res = await fetch("/api/profile", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
+        },
         body: JSON.stringify({ ...data, onboarding_complete: true }),
       })
+
+      console.log('📡 Onboarding POST Response status:', res.status)
       if (res.ok) {
         const responseData = await res.json()
+        console.log('✅ Onboarding save successful')
         // Save to localStorage
         localStorage.setItem("profile", JSON.stringify(responseData.profile))
         router.push("/chat")
+      } else {
+        const errorText = await res.text()
+        console.error('❌ Onboarding save failed:', res.status, errorText)
       }
+    } catch (error) {
+      console.error('❌ Error saving onboarding:', error)
     } finally {
       setSaving(false)
     }

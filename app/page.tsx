@@ -16,11 +16,11 @@ export default function LandingPage() {
           Hyper-personalized, fiduciary-level advice powered by secure Account Aggregator consent and an empathetic AI.
         </p>
         <div className="flex items-center gap-3">
-          <AuthDialog>
-            <Button size="lg" className="bg-primary text-primary-foreground hover:opacity-90">
-              Get started
-            </Button>
-          </AuthDialog>
+          <AuthDialog 
+            buttonText="Get started"
+            buttonClassName="bg-primary text-primary-foreground hover:opacity-90"
+            size="lg"
+          />
           <a href="#how-it-works" className="text-sm md:text-base underline text-foreground hover:opacity-80">
             Learn more
           </a>

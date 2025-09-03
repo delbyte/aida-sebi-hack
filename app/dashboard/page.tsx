@@ -11,7 +11,32 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { auth } from "@/lib/firebase"
 import { onAuthStateChanged } from "firebase/auth"
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json())
+const fetcher = async (url: string) => {
+  const user = auth.currentUser
+  if (!user) {
+    console.log('❌ No authenticated user for API call')
+    throw new Error("No authenticated user")
+  }
+
+  console.log('🔑 Getting ID token for user:', user.uid, user.email)
+  const idToken = await user.getIdToken()
+  console.log('✅ Got ID token, length:', idToken.length)
+
+  const response = await fetch(url, {
+    headers: {
+      "Authorization": `Bearer ${idToken}`,
+    },
+  })
+
+  console.log('📡 API Response status:', response.status)
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error('❌ API Error:', response.status, errorText)
+    throw new Error(`HTTP error! status: ${response.status}`)
+  }
+
+  return response.json()
+}
 
 export default function Dashboard() {
   const [userId, setUserId] = React.useState<string | null>(null)
@@ -50,13 +75,16 @@ export default function Dashboard() {
     try {
       const user = auth.currentUser
       if (!user) {
-        console.error("No authenticated user")
+        console.error("❌ No authenticated user")
         return
       }
 
+      console.log('🔑 Getting ID token for POST request, user:', user.uid, user.email)
       const idToken = await user.getIdToken()
+      console.log('✅ Got ID token for POST, length:', idToken.length)
 
-      await fetch("/api/finances", {
+      console.log('📤 Making POST request to /api/finances')
+      const response = await fetch("/api/finances", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -64,10 +92,18 @@ export default function Dashboard() {
         },
         body: JSON.stringify(newEntry),
       })
-      mutate()
-      setNewEntry({ type: "", amount: "", category: "", description: "" })
+
+      console.log('📡 POST Response status:', response.status)
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ POST Error:', response.status, errorText)
+      } else {
+        console.log('✅ POST Success')
+        mutate()
+        setNewEntry({ type: "", amount: "", category: "", description: "" })
+      }
     } catch (error) {
-      console.error("Error adding transaction:", error)
+      console.error("❌ Error adding transaction:", error)
     }
   }
 

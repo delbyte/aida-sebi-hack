@@ -10,7 +10,25 @@ import { Button } from "@/components/ui/button"
 import { auth } from "@/lib/firebase"
 import { onAuthStateChanged } from "firebase/auth"
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json())
+const fetcher = async (url: string) => {
+  const user = auth.currentUser
+  if (!user) {
+    throw new Error("No authenticated user")
+  }
+
+  const idToken = await user.getIdToken()
+  const response = await fetch(url, {
+    headers: {
+      "Authorization": `Bearer ${idToken}`,
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`)
+  }
+
+  return response.json()
+}
 
 export default function ProfileForm() {
   const [userId, setUserId] = React.useState<string | null>(null)
@@ -47,9 +65,20 @@ export default function ProfileForm() {
     if (!userId) return
     setSaving(true)
     try {
+      const user = auth.currentUser
+      if (!user) {
+        console.error("No authenticated user")
+        return
+      }
+
+      const idToken = await user.getIdToken()
+
       const res = await fetch("/api/profile", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
+        },
         body: JSON.stringify({ ...form, userId }),
       })
       if (res.ok) {

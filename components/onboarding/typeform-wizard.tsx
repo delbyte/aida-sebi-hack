@@ -35,6 +35,9 @@ export function TypeformWizard() {
         body: JSON.stringify({ ...data, onboarding_complete: true }),
       })
       if (res.ok) {
+        const responseData = await res.json()
+        // Save to localStorage
+        localStorage.setItem("profile", JSON.stringify(responseData.profile))
         router.push("/chat")
       }
     } finally {

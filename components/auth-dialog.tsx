@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/browser"
 
 export function AuthDialog({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = React.useState(false)
@@ -25,7 +24,6 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
 
 function AuthForm({ onSuccess }: { onSuccess?: () => void }) {
   const router = useRouter()
-  const supabase = React.useMemo(() => createClient(), [])
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
   const [loading, setLoading] = React.useState<"idle" | "email" | "google">("idle")
@@ -36,13 +34,13 @@ function AuthForm({ onSuccess }: { onSuccess?: () => void }) {
     setError(null)
     setLoading("email")
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) {
-        setError(error.message)
-      } else {
+      // Mock sign-in for tech demo
+      if (email && password) {
+        localStorage.setItem("user", JSON.stringify({ email, name: email.split("@")[0] }))
         onSuccess?.()
-        // If new user without profile, redirect to onboarding; else chat
         router.push("/onboarding")
+      } else {
+        setError("Please enter email and password")
       }
     } finally {
       setLoading("idle")
@@ -53,12 +51,10 @@ function AuthForm({ onSuccess }: { onSuccess?: () => void }) {
     setError(null)
     setLoading("google")
     try {
-      const redirectTo = process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/onboarding`
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo },
-      })
-      if (error) setError(error.message)
+      // Mock Google sign-in
+      localStorage.setItem("user", JSON.stringify({ email: "demo@gmail.com", name: "Demo User" }))
+      onSuccess?.()
+      router.push("/onboarding")
     } finally {
       setLoading("idle")
     }
@@ -69,17 +65,13 @@ function AuthForm({ onSuccess }: { onSuccess?: () => void }) {
     setError(null)
     setLoading("email")
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/onboarding`,
-        },
-      })
-      if (error) {
-        setError(error.message)
-      } else {
+      // Mock sign-up
+      if (email && password) {
+        localStorage.setItem("user", JSON.stringify({ email, name: email.split("@")[0] }))
         onSuccess?.()
+        router.push("/onboarding")
+      } else {
+        setError("Please enter email and password")
       }
     } finally {
       setLoading("idle")

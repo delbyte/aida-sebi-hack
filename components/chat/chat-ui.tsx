@@ -28,7 +28,7 @@ export default function ChatUI() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: next }),
+        body: JSON.stringify({ messages: next, profile: profData?.profile }),
       })
       const data = await res.json()
       if (data?.reply) {

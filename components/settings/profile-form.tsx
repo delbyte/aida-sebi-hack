@@ -22,7 +22,18 @@ export default function ProfileForm() {
   })
 
   React.useEffect(() => {
-    if (data?.profile) {
+    // Load from localStorage first
+    const storedProfile = localStorage.getItem("profile")
+    if (storedProfile) {
+      const profile = JSON.parse(storedProfile)
+      setForm({
+        full_name: profile.full_name ?? "",
+        goals: profile.goals ?? "",
+        risk_tolerance: profile.risk_tolerance ?? 5,
+        monthly_income: profile.monthly_income ?? "",
+        currency: profile.currency ?? "INR",
+      })
+    } else if (data?.profile) {
       setForm({
         full_name: data.profile.full_name ?? "",
         goals: data.profile.goals ?? "",
@@ -42,6 +53,9 @@ export default function ProfileForm() {
         body: JSON.stringify(form),
       })
       if (res.ok) {
+        const data = await res.json()
+        // Save to localStorage for persistence
+        localStorage.setItem("profile", JSON.stringify(data.profile))
         await mutate()
       }
     } finally {

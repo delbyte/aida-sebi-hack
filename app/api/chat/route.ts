@@ -58,7 +58,7 @@ export async function POST(req: Request) {
 
   const system = [
     "You are A.I.D.A., an empathetic, SEBI-compliant financial mentor.",
-    "Always reference and update the user's memory before responding.",
+    "Always reference (and update if needed) the user's memory before responding.",
     "If you need to update memory, output 'UPDATE_MEMORY: [new data]' at the end of your response.",
     `User profile: ${JSON.stringify(profile)}`,
     `User memory: ${memory}`,

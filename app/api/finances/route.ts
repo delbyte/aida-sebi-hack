@@ -1,26 +1,77 @@
 import { NextResponse } from "next/server"
-import { loadUserData, saveUserData } from "@/lib/data-storage"
+import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore"
+import { db } from "@/lib/firestore"
+import * as admin from "firebase-admin"
+import { headers } from "next/headers"
 
-export async function GET() {
-  const userId = "demo-user"
-  const userData = await loadUserData(userId)
-  return NextResponse.json({ finances: userData.finances })
+// Initialize Firebase Admin
+if (!admin.apps.length) {
+  admin.initializeApp({
+    projectId: process.env.FIREBASE_PROJECT_ID,
+  })
+}
+
+const adminAuth = admin.auth()
+
+async function verifyFirebaseToken() {
+  const headersList = headers()
+  const authHeader = headersList.get("authorization")
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null
+  }
+
+  const idToken = authHeader.substring(7) // Remove "Bearer " prefix
+
+  try {
+    const decodedToken = await adminAuth.verifyIdToken(idToken)
+    return decodedToken.uid
+  } catch (error) {
+    console.error("Token verification failed:", error)
+    return null
+  }
+}
+
+export async function GET(req: Request) {
+  const userId = await verifyFirebaseToken()
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  try {
+    const financesRef = collection(db, "finances")
+    const q = query(financesRef, where("userId", "==", userId))
+    const querySnapshot = await getDocs(q)
+    const finances = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+
+    return NextResponse.json({ finances })
+  } catch (error) {
+    console.error("Error fetching finances:", error)
+    return NextResponse.json({ error: "Failed to fetch finances" }, { status: 500 })
+  }
 }
 
 export async function POST(req: Request) {
-  const userId = "demo-user"
+  const userId = await verifyFirebaseToken()
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
   const body = await req.json()
-  const userData = await loadUserData(userId)
-  const newEntry = {
-    id: Date.now().toString(),
-    date: body.date || new Date().toISOString().split('T')[0],
-    type: body.type, // e.g., "income", "expense"
-    category: body.category, // e.g., "salary", "food"
-    amount: Number(body.amount),
-    description: body.description || "",
-    created_at: new Date().toISOString(),
+
+  try {
+    const newFinance = {
+      userId,
+      type: body.type,
+      amount: Number(body.amount),
+      category: body.category,
+      description: body.description,
+      date: body.date ? new Date(body.date) : new Date(),
+      createdAt: new Date(),
+    }
+
+    const docRef = doc(collection(db, "finances"))
+    await setDoc(docRef, newFinance)
+
+    return NextResponse.json({ finance: { id: docRef.id, ...newFinance } })
+  } catch (error) {
+    console.error("Error creating finance:", error)
+    return NextResponse.json({ error: "Failed to create finance" }, { status: 500 })
   }
-  userData.finances.push(newEntry)
-  await saveUserData(userId, userData)
-  return NextResponse.json({ entry: newEntry })
 }

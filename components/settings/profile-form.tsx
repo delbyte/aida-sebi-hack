@@ -7,11 +7,14 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
+import { auth } from "@/lib/firebase"
+import { onAuthStateChanged } from "firebase/auth"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 export default function ProfileForm() {
-  const { data, mutate } = useSWR("/api/profile", fetcher)
+  const [userId, setUserId] = React.useState<string | null>(null)
+  const { data, mutate } = useSWR(userId ? `/api/profile?userId=${userId}` : null, fetcher)
   const [saving, setSaving] = React.useState(false)
   const [form, setForm] = React.useState({
     full_name: "",
@@ -22,18 +25,14 @@ export default function ProfileForm() {
   })
 
   React.useEffect(() => {
-    // Load from localStorage first
-    const storedProfile = localStorage.getItem("profile")
-    if (storedProfile) {
-      const profile = JSON.parse(storedProfile)
-      setForm({
-        full_name: profile.full_name ?? "",
-        goals: profile.goals ?? "",
-        risk_tolerance: profile.risk_tolerance ?? 5,
-        monthly_income: profile.monthly_income ?? "",
-        currency: profile.currency ?? "INR",
-      })
-    } else if (data?.profile) {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUserId(user?.uid || null)
+    })
+    return unsubscribe
+  }, [])
+
+  React.useEffect(() => {
+    if (data?.profile) {
       setForm({
         full_name: data.profile.full_name ?? "",
         goals: data.profile.goals ?? "",
@@ -45,17 +44,15 @@ export default function ProfileForm() {
   }, [data])
 
   async function save() {
+    if (!userId) return
     setSaving(true)
     try {
       const res = await fetch("/api/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, userId }),
       })
       if (res.ok) {
-        const data = await res.json()
-        // Save to localStorage for persistence
-        localStorage.setItem("profile", JSON.stringify(data.profile))
         await mutate()
       }
     } finally {

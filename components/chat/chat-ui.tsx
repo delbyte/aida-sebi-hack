@@ -5,35 +5,61 @@ import useSWR from "swr"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import Link from "next/link"
+import { auth } from "@/lib/firebase"
+import { onAuthStateChanged } from "firebase/auth"
 
 type Message = { role: "user" | "assistant"; content: string }
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 export default function ChatUI() {
-  const { data: profData } = useSWR("/api/profile", fetcher)
+  const [userId, setUserId] = React.useState<string | null>(null)
+  const { data: profData } = useSWR(userId ? `/api/profile?userId=${userId}` : null, fetcher)
   const [messages, setMessages] = React.useState<Message[]>([
     { role: "assistant", content: "Welcome! How can I help with your finances today?" },
   ])
   const [input, setInput] = React.useState("")
   const [loading, setLoading] = React.useState(false)
 
+  React.useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUserId(user?.uid || null)
+    })
+    return unsubscribe
+  }, [])
+
   async function send() {
-    if (!input.trim()) return
+    if (!input.trim() || !userId) return
     const next = [...messages, { role: "user" as const, content: input }]
     setMessages(next)
     setInput("")
     setLoading(true)
+
     try {
+      // Get the current user's ID token
+      const user = auth.currentUser
+      if (!user) {
+        console.error("No authenticated user")
+        return
+      }
+
+      const idToken = await user.getIdToken()
+
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
+        },
         body: JSON.stringify({ messages: next, profile: profData?.profile }),
       })
       const data = await res.json()
       if (data?.reply) {
         setMessages((m) => [...m, { role: "assistant", content: data.reply }])
       }
+    } catch (error) {
+      console.error("Chat error:", error)
     } finally {
       setLoading(false)
     }
@@ -41,6 +67,12 @@ export default function ChatUI() {
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-between">
+        <h2 className="text-xl font-semibold">AI Chat</h2>
+        <Link href="/dashboard">
+          <Button variant="outline">View Dashboard</Button>
+        </Link>
+      </div>
       <Card>
         <CardContent className="p-4 text-sm text-muted-foreground">
           {profData?.profile ? (

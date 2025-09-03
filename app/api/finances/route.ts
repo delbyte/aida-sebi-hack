@@ -1,17 +1,6 @@
 import { NextResponse } from "next/server"
-import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore"
-import { db } from "@/lib/firestore"
-import * as admin from "firebase-admin"
+import { adminAuth, adminDb } from "@/lib/firebase-admin"
 import { headers } from "next/headers"
-
-// Initialize Firebase Admin
-if (!admin.apps.length) {
-  admin.initializeApp({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-  })
-}
-
-const adminAuth = admin.auth()
 
 async function verifyFirebaseToken() {
   const headersList = headers()
@@ -37,9 +26,8 @@ export async function GET(req: Request) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   try {
-    const financesRef = collection(db, "finances")
-    const q = query(financesRef, where("userId", "==", userId))
-    const querySnapshot = await getDocs(q)
+    const financesRef = adminDb.collection("finances")
+    const querySnapshot = await financesRef.where("userId", "==", userId).get()
     const finances = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
 
     return NextResponse.json({ finances })
@@ -66,8 +54,8 @@ export async function POST(req: Request) {
       createdAt: new Date(),
     }
 
-    const docRef = doc(collection(db, "finances"))
-    await setDoc(docRef, newFinance)
+    const docRef = adminDb.collection("finances").doc()
+    await docRef.set(newFinance)
 
     return NextResponse.json({ finance: { id: docRef.id, ...newFinance } })
   } catch (error) {

@@ -2,20 +2,11 @@ import { NextResponse } from "next/server"
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import { doc, getDoc, setDoc } from "firebase/firestore"
 import { db } from "@/lib/firestore"
-import * as admin from "firebase-admin"
+import { adminAuth } from "@/lib/firebase-admin"
 import { headers } from "next/headers"
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" })
-
-// Initialize Firebase Admin
-if (!admin.apps.length) {
-  admin.initializeApp({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-  })
-}
-
-const adminAuth = admin.auth()
 
 async function verifyFirebaseToken() {
   const headersList = headers()

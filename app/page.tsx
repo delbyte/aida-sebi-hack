@@ -21,9 +21,6 @@ export default function LandingPage() {
             buttonClassName="bg-primary text-primary-foreground hover:opacity-90"
             size="lg"
           />
-          <a href="#how-it-works" className="text-sm md:text-base underline text-foreground hover:opacity-80">
-            Learn more
-          </a>
         </div>
 
         <div id="how-it-works" className="grid md:grid-cols-3 gap-4 mt-12 w-full">

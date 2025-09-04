@@ -50,7 +50,6 @@ export default function LandingPage() {
         // If no profile found or error, user needs to complete onboarding
         router.push("/onboarding")
       } catch (error) {
-        console.error("Error checking profile:", error)
         // On error, still redirect to onboarding to be safe
         router.push("/onboarding")
       } finally {

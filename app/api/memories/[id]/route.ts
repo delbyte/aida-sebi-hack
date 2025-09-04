@@ -17,7 +17,6 @@ async function verifyFirebaseToken() {
     const decodedToken = await adminAuth.verifyIdToken(idToken)
     return decodedToken.uid
   } catch (error) {
-    console.error('Token verification failed:', error)
     return null
   }
 }
@@ -50,7 +49,6 @@ export async function PATCH(
       message: "Memory updated successfully"
     })
   } catch (error) {
-    console.error('Error updating memory:', error)
     return NextResponse.json(
       { error: "Failed to update memory" },
       { status: 500 }
@@ -89,7 +87,6 @@ export async function DELETE(
       message: "Memory deleted successfully"
     })
   } catch (error) {
-    console.error('Error deleting memory:', error)
     return NextResponse.json(
       { error: "Failed to delete memory" },
       { status: 500 }

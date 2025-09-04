@@ -271,17 +271,14 @@ export function EnhancedOnboardingWizard() {
 
   React.useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      console.log('🔑 Auth state changed in enhanced onboarding:', currentUser?.uid, currentUser?.email)
       setUser(currentUser)
       if (!currentUser) {
-        console.log('❌ No authenticated user, redirecting to home')
         router.push("/")
         return
       }
 
       // Check if user has already completed onboarding
       try {
-        console.log('🔍 Checking if user has completed onboarding...')
         const idToken = await currentUser.getIdToken()
         const profileResponse = await fetch("/api/profile", {
           headers: {
@@ -294,17 +291,12 @@ export function EnhancedOnboardingWizard() {
           const onboardingComplete = profileData.profile?.onboarding_complete === true
           
           if (onboardingComplete) {
-            console.log('✅ User has already completed onboarding, redirecting to dashboard')
             router.push("/dashboard")
             return
-          } else {
-            console.log('📝 User needs to complete onboarding')
           }
-        } else {
-          console.log('⚠️ Could not fetch profile, proceeding with onboarding')
         }
       } catch (error) {
-        console.error('❌ Error checking onboarding status:', error)
+        // Continue with onboarding
       }
     })
     return unsubscribe
@@ -344,16 +336,13 @@ export function EnhancedOnboardingWizard() {
 
   async function save() {
     if (!user) {
-      console.error("❌ No authenticated user")
       return
     }
 
     setSaving(true)
     try {
-      console.log('🔑 Getting ID token for enhanced onboarding save')
       const idToken = await user.getIdToken()
 
-      console.log('📤 Making POST request to /api/profile from enhanced onboarding')
       const res = await fetch("/api/profile", {
         method: "POST",
         headers: {
@@ -367,17 +356,12 @@ export function EnhancedOnboardingWizard() {
         }),
       })
 
-      console.log('📡 Enhanced onboarding POST Response status:', res.status)
       if (res.ok) {
         const responseData = await res.json()
-        console.log('✅ Enhanced onboarding save successful')
         router.push("/chat")
-      } else {
-        const errorText = await res.text()
-        console.error('❌ Enhanced onboarding save failed:', res.status, errorText)
       }
     } catch (error) {
-      console.error('❌ Error saving enhanced onboarding:', error)
+      // Handle error silently
     } finally {
       setSaving(false)
     }

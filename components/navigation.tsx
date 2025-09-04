@@ -24,7 +24,7 @@ const navigation = [
 
 export function Navigation() {
   const pathname = usePathname()
-  const [user] = useAuthState(auth)
+  const [user, loading] = useAuthState(auth)
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false)
 
   const handleSignOut = async () => {
@@ -32,7 +32,7 @@ export function Navigation() {
       await signOut(auth)
       setIsDropdownOpen(false)
     } catch (error) {
-      console.error("Sign out error:", error)
+      // Handle sign out error silently
     }
   }
 
@@ -59,10 +59,14 @@ export function Navigation() {
   }, [isDropdownOpen])
 
   const getUserInitials = (user: User | null | undefined) => {
-    if (!user?.displayName && !user?.email) return "U"
-    return user.displayName
-      ? user.displayName.split(" ").map(n => n[0]).join("").toUpperCase()
-      : user.email?.[0].toUpperCase() || "U"
+    if (!user) return "U"
+    if (user.displayName) {
+      return user.displayName.split(" ").map(n => n[0]).join("").toUpperCase()
+    }
+    if (user.email) {
+      return user.email[0].toUpperCase()
+    }
+    return "U"
   }
 
   return (
@@ -101,10 +105,13 @@ export function Navigation() {
               <button
                 onClick={toggleDropdown}
                 className="relative h-8 w-8 rounded-full p-0 hover:bg-gray-100 transition-colors"
+                disabled={loading}
               >
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={user?.photoURL || ""} alt={user?.displayName || ""} />
-                  <AvatarFallback className="bg-gray-200 text-black">{getUserInitials(user)}</AvatarFallback>
+                  <AvatarFallback className="bg-gray-200 text-black">
+                    {loading ? "U" : getUserInitials(user)}
+                  </AvatarFallback>
                 </Avatar>
               </button>
 

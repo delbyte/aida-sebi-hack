@@ -17,7 +17,6 @@ async function verifyFirebaseToken() {
     const decodedToken = await adminAuth.verifyIdToken(idToken)
     return decodedToken.uid
   } catch (error) {
-    console.error("Token verification failed:", error)
     return null
   }
 }
@@ -68,7 +67,6 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ memories: serializedMemories })
   } catch (error) {
-    console.error("Error fetching memories:", error)
     return NextResponse.json({ error: "Failed to fetch memories" }, { status: 500 })
   }
 }
@@ -116,7 +114,6 @@ export async function POST(req: Request) {
       })
     }
   } catch (error) {
-    console.error("Error creating memory:", error)
     return NextResponse.json({ error: "Failed to create memory" }, { status: 500 })
   }
 }
@@ -148,7 +145,6 @@ export async function PUT(req: Request) {
       message: "Memory updated successfully"
     })
   } catch (error) {
-    console.error("Error updating memory:", error)
     return NextResponse.json({ error: "Failed to update memory" }, { status: 500 })
   }
 }

@@ -1,5 +1,5 @@
 export interface FinanceEntry {
-  type: 'income' | 'expense'
+  type: 'income' | 'expense' | 'investment'
   amount: number
   category: string
   description: string
@@ -135,13 +135,21 @@ function analyzeAmountContext(
 }
 
 /**
- * Determine if transaction is income or expense
+ * Determine if transaction is income, expense, or investment
  */
-function determineTransactionType(context: string): 'income' | 'expense' {
+function determineTransactionType(context: string): 'income' | 'expense' | 'investment' {
+  // Investment keywords (highest priority)
+  const investmentKeywords = [
+    'invested', 'investment', 'invest', 'bought shares', 'purchased stock', 'mutual fund',
+    'sip', 'systematic investment plan', 'equity', 'bond', 'fixed deposit', 'fd',
+    'portfolio', 'stock market', 'trading', 'bought units', 'purchased units',
+    'added to portfolio', 'capital investment', 'long-term investment'
+  ]
+
   // Income keywords
   const incomeKeywords = [
     'received', 'got', 'earned', 'salary', 'income', 'deposit', 'credited',
-    'bonus', 'dividend', 'refund', 'reimbursement', 'won', 'prize'
+    'bonus', 'dividend', 'refund', 'reimbursement', 'won', 'prize', 'profit'
   ]
 
   // Expense keywords
@@ -150,11 +158,19 @@ function determineTransactionType(context: string): 'income' | 'expense' {
     'charged', 'debited', 'withdrew', 'gave', 'donated'
   ]
 
+  const investmentScore = investmentKeywords.reduce((score, keyword) =>
+    score + (context.includes(keyword) ? 1 : 0), 0)
+
   const incomeScore = incomeKeywords.reduce((score, keyword) =>
     score + (context.includes(keyword) ? 1 : 0), 0)
 
   const expenseScore = expenseKeywords.reduce((score, keyword) =>
     score + (context.includes(keyword) ? 1 : 0), 0)
+
+  // Investment has highest priority
+  if (investmentScore > 0) {
+    return 'investment'
+  }
 
   return incomeScore > expenseScore ? 'income' : 'expense'
 }
@@ -162,7 +178,7 @@ function determineTransactionType(context: string): 'income' | 'expense' {
 /**
  * Determine transaction category
  */
-function determineCategory(context: string, type: 'income' | 'expense'): string {
+function determineCategory(context: string, type: 'income' | 'expense' | 'investment'): string {
   const categories = {
     income: {
       salary: ['salary', 'payroll', 'wage', 'compensation'],
@@ -184,6 +200,16 @@ function determineCategory(context: string, type: 'income' | 'expense'): string 
       medical: ['medical', 'doctor', 'hospital', 'medicine', 'pharmacy', 'health'],
       education: ['education', 'school', 'college', 'course', 'book', 'tuition'],
       household: ['household', 'furniture', 'appliance', 'repair', 'maintenance']
+    },
+    investment: {
+      stocks: ['stock', 'shares', 'equity', 'trading', 'nse', 'bse', 'sensex'],
+      mutual_funds: ['mutual fund', 'sip', 'systematic investment', 'elss', 'fund'],
+      fixed_deposit: ['fixed deposit', 'fd', 'term deposit', 'recurring deposit'],
+      bonds: ['bond', 'debenture', 'government securities', 'corporate bond'],
+      gold: ['gold', 'sovereign gold bond', 'gold etf', 'digital gold'],
+      real_estate: ['property', 'real estate', 'land', 'house purchase'],
+      crypto: ['crypto', 'bitcoin', 'ethereum', 'cryptocurrency', 'blockchain'],
+      p2p: ['p2p', 'peer to peer', 'lending', 'platform lending']
     }
   }
 
@@ -198,6 +224,9 @@ function determineCategory(context: string, type: 'income' | 'expense'): string 
   }
 
   // Default categories
+  if (type === 'investment') {
+    return 'stocks' // Default investment category
+  }
   return type === 'income' ? 'other_income' : 'miscellaneous'
 }
 
@@ -299,11 +328,22 @@ function calculateConfidence(context: string, amount: number, type: string): num
   let confidence = 0.5 // Base confidence
 
   // Explicit financial keywords increase confidence
-  const explicitKeywords = ['spent', 'paid', 'bought', 'received', 'got', 'earned', 'cost']
+  const explicitKeywords = ['spent', 'paid', 'bought', 'received', 'got', 'earned', 'cost', 'invested', 'investment']
   for (const keyword of explicitKeywords) {
     if (context.includes(keyword)) {
       confidence += 0.2
       break
+    }
+  }
+
+  // Investment-specific keywords for higher confidence
+  if (type === 'investment') {
+    const investmentKeywords = ['stock', 'mutual fund', 'sip', 'shares', 'units', 'portfolio', 'equity']
+    for (const keyword of investmentKeywords) {
+      if (context.includes(keyword)) {
+        confidence += 0.3
+        break
+      }
     }
   }
 
@@ -315,7 +355,8 @@ function calculateConfidence(context: string, amount: number, type: string): num
   // Clear category keywords increase confidence
   const categoryKeywords = [
     'food', 'shopping', 'transport', 'rent', 'salary', 'bonus',
-    'electricity', 'water', 'gas', 'medical', 'education'
+    'electricity', 'water', 'gas', 'medical', 'education',
+    'stock', 'mutual fund', 'sip', 'shares', 'equity', 'portfolio'
   ]
   for (const keyword of categoryKeywords) {
     if (context.includes(keyword)) {
@@ -325,7 +366,7 @@ function calculateConfidence(context: string, amount: number, type: string): num
   }
 
   // Multiple context clues increase confidence
-  const contextClues = ['₹', '$', 'rs', 'paid', 'bought', 'spent']
+  const contextClues = ['₹', '$', 'rs', 'paid', 'bought', 'spent', 'invested', 'investment']
   let clueCount = 0
   for (const clue of contextClues) {
     if (context.includes(clue)) clueCount++

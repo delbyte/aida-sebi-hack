@@ -16,7 +16,6 @@ async function verifyFirebaseToken() {
     const decodedToken = await adminAuth.verifyIdToken(idToken)
     return decodedToken.uid
   } catch (error) {
-    console.error("Token verification failed:", error)
     return null
   }
 }
@@ -72,7 +71,6 @@ export async function GET(req: Request) {
           }
         }
       } catch (error) {
-        console.warn("Invalid date format in query parameters:", { startDate, endDate })
         // Continue without date filters if dates are invalid
       }
     }
@@ -172,7 +170,6 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ finances })
   } catch (error) {
-    console.error("Error fetching finances:", error)
     return NextResponse.json({ error: "Failed to fetch finances" }, { status: 500 })
   }
 }
@@ -257,8 +254,6 @@ export async function POST(req: Request) {
     const docRef = adminDb.collection("finances").doc()
     await docRef.set(newFinance)
 
-    console.log(`✅ Finance entry created: ${newFinance.type} - ₹${newFinance.amount} (${newFinance.ai_generated ? 'AI' : 'User'})`)
-
     return NextResponse.json({
       finance: {
         id: docRef.id,
@@ -269,7 +264,6 @@ export async function POST(req: Request) {
       }
     })
   } catch (error) {
-    console.error("Error creating finance:", error)
     return NextResponse.json({ error: "Failed to create finance" }, { status: 500 })
   }
 }

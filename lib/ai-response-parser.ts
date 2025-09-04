@@ -4,6 +4,7 @@ export interface ParsedAIResponse {
   reply: string
   financeEntries: FinanceEntry[]
   memoryUpdates: MemoryUpdate[]
+  investmentUpdates: InvestmentUpdate[]
   confidence: number
 }
 
@@ -15,6 +16,14 @@ export interface MemoryUpdate {
   isNew?: boolean
 }
 
+export interface InvestmentUpdate {
+  investmentId?: string
+  investmentName?: string
+  newValue: number
+  changeType: 'absolute' | 'percentage'
+  reason?: string
+}
+
 /**
  * Parse AI response for structured data (finance entries, memory updates)
  */
@@ -23,6 +32,7 @@ export function parseAIResponse(response: string): ParsedAIResponse {
     reply: response,
     financeEntries: [],
     memoryUpdates: [],
+    investmentUpdates: [],
     confidence: 1.0
   }
 
@@ -32,11 +42,14 @@ export function parseAIResponse(response: string): ParsedAIResponse {
   // Parse memory updates
   result.memoryUpdates = parseMemoryUpdates(response)
 
+  // Parse investment updates
+  result.investmentUpdates = parseInvestmentUpdates(response)
+
   // Clean the reply by removing structured data markers
   result.reply = cleanResponseText(response)
 
   // Calculate overall confidence
-  if (result.financeEntries.length > 0 || result.memoryUpdates.length > 0) {
+  if (result.financeEntries.length > 0 || result.memoryUpdates.length > 0 || result.investmentUpdates.length > 0) {
     const financeConfidence = result.financeEntries.length > 0
       ? result.financeEntries.reduce((sum, entry) => sum + entry.confidence, 0) / result.financeEntries.length
       : 1.0
@@ -45,7 +58,9 @@ export function parseAIResponse(response: string): ParsedAIResponse {
       ? result.memoryUpdates.reduce((sum, update) => sum + (update.importance / 10), 0) / result.memoryUpdates.length
       : 1.0
 
-    result.confidence = (financeConfidence + memoryConfidence) / 2
+    const investmentConfidence = result.investmentUpdates.length > 0 ? 0.9 : 1.0
+
+    result.confidence = (financeConfidence + memoryConfidence + investmentConfidence) / 3
   }
 
   return result
@@ -157,6 +172,47 @@ function parseMemoryUpdates(response: string): MemoryUpdate[] {
 }
 
 /**
+ * Parse investment updates from AI response
+ */
+function parseInvestmentUpdates(response: string): InvestmentUpdate[] {
+  const updates: InvestmentUpdate[] = []
+
+  console.log('📈 Parsing investment updates from response...')
+
+  // Look for INVESTMENT_UPDATE format
+  const updatePatterns = [
+    /INVESTMENT_UPDATE:?\s*(\{[\s\S]*?\})/g,
+    /UPDATE_INVESTMENT:?\s*(\{[\s\S]*?\})/g,
+    /INVESTMENT_VALUE_UPDATE:?\s*(\{[\s\S]*?\})/g
+  ]
+
+  for (const pattern of updatePatterns) {
+    let match
+    while ((match = pattern.exec(response)) !== null) {
+      console.log('📈 Found investment update match:', match[1])
+      try {
+        const updateData = JSON.parse(match[1])
+        console.log('✅ Parsed investment update data:', updateData)
+        const update: InvestmentUpdate = {
+          investmentId: updateData.investmentId,
+          investmentName: updateData.investmentName,
+          newValue: Number(updateData.newValue),
+          changeType: updateData.changeType || 'absolute',
+          reason: updateData.reason
+        }
+        updates.push(update)
+        console.log('✅ Created investment update:', update)
+      } catch (error) {
+        console.error('❌ Failed to parse investment update:', error, 'Raw data:', match[1])
+      }
+    }
+  }
+
+  console.log(`📈 Total investment updates parsed: ${updates.length}`)
+  return updates
+}
+
+/**
  * Clean response text by removing structured data markers
  */
 function cleanResponseText(response: string): string {
@@ -173,6 +229,11 @@ function cleanResponseText(response: string): string {
   cleanText = cleanText.replace(/SAVE_MEMORY:?\s*\{[\s\S]*?\}/g, '')
   cleanText = cleanText.replace(/CONSOLIDATE_MEMORY:?\s*\{[\s\S]*?\}/g, '')
 
+  // Remove investment update markers
+  cleanText = cleanText.replace(/INVESTMENT_UPDATE:?\s*\{[\s\S]*?\}/g, '')
+  cleanText = cleanText.replace(/UPDATE_INVESTMENT:?\s*\{[\s\S]*?\}/g, '')
+  cleanText = cleanText.replace(/INVESTMENT_VALUE_UPDATE:?\s*\{[\s\S]*?\}/g, '')
+
   // Clean up extra whitespace and newlines
   cleanText = cleanText.replace(/\n\s*\n/g, '\n') // Remove multiple newlines
   cleanText = cleanText.trim()
@@ -185,7 +246,7 @@ function cleanResponseText(response: string): string {
  */
 export function validateFinanceEntry(entry: FinanceEntry): boolean {
   // Required fields
-  if (!entry.type || !['income', 'expense'].includes(entry.type)) return false
+  if (!entry.type || !['income', 'expense', 'investment'].includes(entry.type)) return false
   if (!entry.amount || entry.amount <= 0) return false
   if (!entry.category) return false
   if (!entry.description) return false
@@ -206,6 +267,20 @@ export function validateMemoryUpdate(update: MemoryUpdate): boolean {
 
   // Optional but validated fields
   if (update.importance !== undefined && (update.importance < 1 || update.importance > 10)) return false
+
+  return true
+}
+
+/**
+ * Validate parsed investment update
+ */
+export function validateInvestmentUpdate(update: InvestmentUpdate): boolean {
+  // Required fields
+  if (!update.newValue || update.newValue <= 0) return false
+  if (!['absolute', 'percentage'].includes(update.changeType)) return false
+
+  // Either investmentId or investmentName must be provided
+  if (!update.investmentId && !update.investmentName) return false
 
   return true
 }

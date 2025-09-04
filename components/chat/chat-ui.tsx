@@ -103,7 +103,6 @@ export default function ChatUI() {
       // Get the current user's ID token
       const user = auth.currentUser
       if (!user) {
-        console.error("No authenticated user")
         return
       }
 
@@ -151,7 +150,7 @@ export default function ChatUI() {
         }
       }
     } catch (error) {
-      console.error("Chat error:", error)
+      // Handle error silently
     } finally {
       setLoading(false)
     }

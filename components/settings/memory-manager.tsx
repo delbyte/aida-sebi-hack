@@ -105,7 +105,6 @@ export default function MemoryManager() {
         toast.error('Failed to fetch memories')
       }
     } catch (error) {
-      console.error('Error fetching memories:', error)
       toast.error('Error loading memories')
     } finally {
       setLoading(false)
@@ -131,7 +130,6 @@ export default function MemoryManager() {
         toast.error('Failed to delete memory')
       }
     } catch (error) {
-      console.error('Error deleting memory:', error)
       toast.error('Error deleting memory')
     }
   }
@@ -159,7 +157,6 @@ export default function MemoryManager() {
         toast.error('Failed to update memory')
       }
     } catch (error) {
-      console.error('Error updating memory:', error)
       toast.error('Error updating memory')
     }
   }
@@ -196,7 +193,6 @@ export default function MemoryManager() {
         toast.error('Failed to add memory')
       }
     } catch (error) {
-      console.error('Error adding memory:', error)
       toast.error('Error adding memory')
     }
   }

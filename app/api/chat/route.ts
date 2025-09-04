@@ -5,7 +5,7 @@ import { headers } from "next/headers"
 import { parseFinanceFromMessage, FinanceEntry } from "@/lib/ai-finance-parser"
 import { parseMemoryFromMessage, MemoryEntry } from "@/lib/ai-memory-parser"
 import { buildMemoryContext, createMemory, updateMemory } from "@/lib/ai-memory-manager"
-import { parseAIResponse, validateFinanceEntry, validateMemoryUpdate } from "@/lib/ai-response-parser"
+import { parseAIResponse, validateFinanceEntry, validateMemoryUpdate, validateInvestmentUpdate } from "@/lib/ai-response-parser"
 import { buildAIContext, formatContextForAI } from "@/lib/ai-context-builder"
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
@@ -22,46 +22,29 @@ async function verifyFirebaseToken() {
   const headersList = headers()
   const authHeader = headersList.get("authorization")
 
-  console.log('🔍 Chat Auth Debug:', {
-    hasAuthHeader: !!authHeader,
-    authHeaderStartsWithBearer: authHeader?.startsWith("Bearer "),
-    authHeaderLength: authHeader?.length,
-  })
-
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    console.log('❌ No valid authorization header')
     return null
   }
 
   const idToken = authHeader.substring(7) // Remove "Bearer " prefix
 
   try {
-    console.log('🔐 Attempting to verify token in chat...')
     const decodedToken = await adminAuth.verifyIdToken(idToken)
-    console.log('✅ Token verified successfully for chat:', { uid: decodedToken.uid, email: decodedToken.email })
     return decodedToken.uid
   } catch (error) {
-    console.error('❌ Token verification failed in chat:', error)
     return null
   }
 }
 
 export async function POST(req: Request) {
-  console.log('📥 POST /api/chat called')
-
   try {
     const userId = await verifyFirebaseToken()
     if (!userId) {
-      console.log('❌ No valid user ID for chat, returning 401')
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    console.log('✅ User authenticated for chat:', userId)
-
     const body = await req.json().catch(() => ({}))
     const { messages = [], profile: clientProfile } = body
-
-    console.log('📄 Chat request data:', { messagesCount: messages.length, hasProfile: !!clientProfile })
 
     // Get user profile from database
     const profileDoc = await adminDb.collection("profiles").doc(userId).get()
@@ -74,18 +57,8 @@ export async function POST(req: Request) {
     }
 
     // Build comprehensive AI context
-    console.log('🔍 Building comprehensive AI context...')
     const aiContext = await buildAIContext(userId, messages[messages.length - 1]?.content || "", messages)
     const contextSummary = formatContextForAI(aiContext)
-    console.log('🔍 AI context built successfully:', {
-      hasProfile: !!aiContext.userProfile,
-      allFinancesCount: aiContext.recentFinances.length,
-      memoriesCount: aiContext.relevantMemories.length,
-      totalIncome: aiContext.financialSummary.totalIncome,
-      totalExpenses: aiContext.financialSummary.totalExpenses,
-      contextSummaryLength: contextSummary.length,
-      contextSummaryPreview: contextSummary.substring(0, 300) + '...'
-    })
 
     // Enhanced system prompt with COMPREHENSIVE AI finance capabilities
     const system = [
@@ -144,42 +117,25 @@ export async function POST(req: Request) {
 
     const prompt = messages.map((m: any) => `${m.role.toUpperCase()}: ${m.content}`).join("\n")
 
-    console.log('🤖 Generating AI response...')
     const result = await model.generateContent(`${system}\n\nConversation:\n${prompt}\n\nA.I.D.A.:`)
-    const aiResponse = result.response.text()
-
-    console.log('✅ AI response generated:', aiResponse.substring(0, 500) + '...')
-    console.log('🔍 Full AI response for debugging:', aiResponse)
-    console.log('🔍 AI response ends with:', aiResponse.slice(-200))
+    let aiResponse = result.response.text()
 
     // Parse AI response for finance entries and memory updates
-    console.log('🤖 Parsing AI response for structured data...')
     const parsedResponse = parseAIResponse(aiResponse)
-    console.log('🤖 Parsed response:', {
-      financeEntries: parsedResponse.financeEntries.length,
-      memoryUpdates: parsedResponse.memoryUpdates.length,
-      confidence: parsedResponse.confidence,
-      financeEntriesDetails: parsedResponse.financeEntries,
-      memoryUpdatesDetails: parsedResponse.memoryUpdates
-    })
 
     // MANUAL FALLBACK: If AI didn't create structured data, try to detect transactions manually
     if (parsedResponse.financeEntries.length === 0) {
-      console.log('⚠️ No structured finance data found, trying manual detection...')
       const userMessage = messages[messages.length - 1]?.content || ""
       const parsedFinances = parseFinanceFromMessage(userMessage)
       if (parsedFinances.entries.length > 0) {
-        console.log('✅ Manual finance detection found entries:', parsedFinances.entries)
         parsedResponse.financeEntries = parsedFinances.entries
       }
     }
 
     if (parsedResponse.memoryUpdates.length === 0) {
-      console.log('⚠️ No structured memory data found, trying manual detection...')
       const userMessage = messages[messages.length - 1]?.content || ""
       const parsedMemories = parseMemoryFromMessage(userMessage)
       if (parsedMemories.entries.length > 0) {
-        console.log('✅ Manual memory detection found entries:', parsedMemories.entries)
         // Convert MemoryEntry to MemoryUpdate format
         parsedResponse.memoryUpdates = parsedMemories.entries.map(entry => ({
           content: entry.content,
@@ -188,18 +144,13 @@ export async function POST(req: Request) {
           isNew: true
         }))
       }
-    } else {
-      console.log('✅ Found structured memory updates from AI:', parsedResponse.memoryUpdates.length)
     }
 
     // Create finance entries if found and valid
     const createdFinances = []
     if (parsedResponse.financeEntries.length > 0) {
-      console.log('💰 Creating finance entries:', parsedResponse.financeEntries)
       for (const entry of parsedResponse.financeEntries) {
-        console.log('🔍 Validating finance entry:', entry)
         const isValid = validateFinanceEntry(entry)
-        console.log('🔍 Validation result:', isValid)
         
         if (isValid) {
           try {
@@ -249,63 +200,27 @@ export async function POST(req: Request) {
               created_by: "ai"
             }
 
-            console.log('📝 Creating finance entry in database:', financeData)
             const docRef = adminDb.collection("finances").doc()
             await docRef.set(financeData)
             
             const createdEntry = { id: docRef.id, ...financeData }
             createdFinances.push(createdEntry)
-
-            console.log(`✅ AI-created finance entry: ${entry.type} ₹${entry.amount} (${entry.category})`)
-            console.log('📋 Created entry object:', createdEntry)
           } catch (error) {
-            console.error('❌ Failed to create finance entry:', error)
-            if (error instanceof Error) {
-              console.error('❌ Error details:', error.message)
-              console.error('❌ Stack trace:', error.stack)
-            }
+            // Continue processing other entries
           }
-        } else {
-          console.log('⚠️ Invalid finance entry skipped:', entry)
-          // Let's see what specifically failed validation
-          console.log('🔍 Validation details:', {
-            hasType: !!entry.type,
-            typeValid: ['income', 'expense'].includes(entry.type),
-            hasAmount: !!entry.amount,
-            amountValid: entry.amount > 0,
-            hasCategory: !!entry.category,
-            hasDescription: !!entry.description,
-            confidenceValid: entry.confidence === undefined || (entry.confidence >= 0 && entry.confidence <= 1)
-          })
         }
       }
-    } else {
-      console.log('❌ No finance entries found to process')
     }
 
     // Create or update memories if found and valid
     const memoryUpdates = []
-    console.log('🧠 Starting memory processing. Memory updates to process:', parsedResponse.memoryUpdates.length)
     
     if (parsedResponse.memoryUpdates.length > 0) {
-      console.log('🧠 Creating memory updates:', parsedResponse.memoryUpdates)
       for (const memoryUpdate of parsedResponse.memoryUpdates) {
-        console.log('🔍 Processing memory update:', memoryUpdate)
-        console.log('🔍 Validating memory update:', memoryUpdate)
         const isValid = validateMemoryUpdate(memoryUpdate)
-        console.log('🔍 Memory validation result:', isValid)
         
         if (isValid) {
           try {
-            console.log('📝 Creating memory in database with data:', {
-              userId,
-              content: memoryUpdate.content,
-              category: memoryUpdate.category,
-              importance: memoryUpdate.importance,
-              source_type: 'conversation',
-              source_message: messages[messages.length - 1]?.content
-            })
-            
             const memoryId = await createMemory(userId, memoryUpdate.content, {
               category: memoryUpdate.category,
               importance: memoryUpdate.importance,
@@ -313,43 +228,129 @@ export async function POST(req: Request) {
               source_message: messages[messages.length - 1]?.content
             })
 
-            console.log('✅ Memory created successfully with ID:', memoryId)
-
             memoryUpdates.push({
               id: memoryId,
               ...memoryUpdate,
               created: true
             })
-
-            console.log(`✅ Memory ${memoryUpdate.isNew ? 'created' : 'updated'}: ${memoryId}`)
           } catch (error) {
-            console.error('❌ Failed to create/update memory:', error)
-            console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+            // Continue processing other memories
           }
-        } else {
-          console.log('⚠️ Invalid memory update skipped:', memoryUpdate)
-          // Let's see what specifically failed validation
-          console.log('🔍 Memory validation details:', {
-            hasContent: !!memoryUpdate.content,
-            contentNotEmpty: memoryUpdate.content && memoryUpdate.content.trim().length > 0,
-            hasCategory: !!memoryUpdate.category,
-            importanceValid: memoryUpdate.importance === undefined || (memoryUpdate.importance >= 1 && memoryUpdate.importance <= 10)
-          })
         }
       }
-    } else {
-      console.log('❌ No memory updates found to process')
+    }
+
+    // Process investment updates if found and valid
+    const investmentUpdates = []
+    
+    if (parsedResponse.investmentUpdates.length > 0) {
+      for (const investmentUpdate of parsedResponse.investmentUpdates) {
+        const isValid = validateInvestmentUpdate(investmentUpdate)
+        
+        if (isValid) {
+          try {
+            // Find the investment to update
+            let investmentQuery = adminDb.collection("finances")
+              .where("userId", "==", userId)
+              .where("type", "==", "investment")
+              .limit(50)
+
+            if (investmentUpdate.investmentId) {
+              // Update by ID
+              const investmentDoc = await adminDb.collection("finances").doc(investmentUpdate.investmentId).get()
+              if (investmentDoc.exists) {
+                const investmentData = investmentDoc.data()
+                const currentValue = investmentData?.current_value || investmentData?.amount || 0
+                
+                let newValue: number
+                if (investmentUpdate.changeType === 'percentage') {
+                  newValue = currentValue * (1 + investmentUpdate.newValue / 100)
+                } else {
+                  newValue = investmentUpdate.newValue
+                }
+
+                await adminDb.collection("finances").doc(investmentUpdate.investmentId).update({
+                  current_value: newValue,
+                  updatedAt: new Date(),
+                  last_value_update: new Date(),
+                  value_update_reason: investmentUpdate.reason || 'Updated via AI chat'
+                })
+
+                investmentUpdates.push({
+                  id: investmentUpdate.investmentId,
+                  ...investmentUpdate,
+                  updated: true,
+                  oldValue: currentValue,
+                  newValue: newValue
+                })
+              }
+            } else if (investmentUpdate.investmentName) {
+              // Find by name and update the most recent one
+              const investmentsSnapshot = await investmentQuery.get()
+              const matchingInvestment = investmentsSnapshot.docs
+                .map(doc => ({ id: doc.id, ...(doc.data() as any) }))
+                .find((inv: any) => 
+                  inv.description?.toLowerCase().includes(investmentUpdate.investmentName!.toLowerCase()) ||
+                  inv.category?.toLowerCase().includes(investmentUpdate.investmentName!.toLowerCase())
+                )
+
+              if (matchingInvestment) {
+                let newValue = matchingInvestment.current_value || matchingInvestment.amount
+
+                if (investmentUpdate.changeType === 'absolute') {
+                  newValue = investmentUpdate.newValue!
+                } else if (investmentUpdate.changeType === 'percentage') {
+                  const changeAmount = (matchingInvestment.current_value || matchingInvestment.amount) * (investmentUpdate.newValue! / 100)
+                  newValue = (matchingInvestment.current_value || matchingInvestment.amount) + changeAmount
+                }
+
+                // Update the investment in database
+                await adminDb.collection('finances').doc(matchingInvestment.id).update({
+                  current_value: newValue,
+                  updated_at: new Date()
+                })
+
+                console.log(`Updated investment ${matchingInvestment.description} from ${(matchingInvestment.current_value || matchingInvestment.amount)} to ${newValue}`)
+
+                // Add update confirmation to AI response
+                aiResponse += `\n\n✅ Updated your investment "${matchingInvestment.description}" value to ₹${newValue.toLocaleString()}.`
+              }
+
+              if (matchingInvestment) {
+                const currentValue = matchingInvestment.current_value || matchingInvestment.amount || 0
+                
+                let newValue: number
+                if (investmentUpdate.changeType === 'percentage') {
+                  newValue = currentValue * (1 + investmentUpdate.newValue / 100)
+                } else {
+                  newValue = investmentUpdate.newValue
+                }
+
+                await adminDb.collection("finances").doc(matchingInvestment.id).update({
+                  current_value: newValue,
+                  updatedAt: new Date(),
+                  last_value_update: new Date(),
+                  value_update_reason: investmentUpdate.reason || 'Updated via AI chat'
+                })
+
+                investmentUpdates.push({
+                  id: matchingInvestment.id,
+                  ...investmentUpdate,
+                  updated: true,
+                  oldValue: currentValue,
+                  newValue: newValue
+                })
+              }
+            }
+          } catch (error) {
+            console.error('Error updating investment:', error)
+          }
+        }
+      }
     }
 
     // Clean response by removing special formatting
     const cleanReply = parsedResponse.reply
-
-    console.log('📤 Sending enhanced chat response with final data:', {
-      createdFinancesCount: createdFinances.length,
-      memoryUpdatesCount: memoryUpdates.length,
-      originalParsedEntries: parsedResponse.financeEntries.length,
-      originalParsedMemories: parsedResponse.memoryUpdates.length
-    })
 
     return NextResponse.json({
       reply: cleanReply,
@@ -372,8 +373,6 @@ export async function POST(req: Request) {
     })
 
   } catch (error) {
-    console.error('❌ Chat API error:', error)
-
     // Return a proper error response
     return NextResponse.json(
       {

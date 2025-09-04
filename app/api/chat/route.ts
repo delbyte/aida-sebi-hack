@@ -323,22 +323,35 @@ export async function POST(req: Request) {
 
     // Create or update memories if found and valid
     const memoryUpdates = []
+    console.log('🧠 Starting memory processing. Memory updates to process:', parsedResponse.memoryUpdates.length)
+    
     if (parsedResponse.memoryUpdates.length > 0) {
       console.log('🧠 Creating memory updates:', parsedResponse.memoryUpdates)
       for (const memoryUpdate of parsedResponse.memoryUpdates) {
+        console.log('🔍 Processing memory update:', memoryUpdate)
         console.log('🔍 Validating memory update:', memoryUpdate)
         const isValid = validateMemoryUpdate(memoryUpdate)
         console.log('🔍 Memory validation result:', isValid)
         
         if (isValid) {
           try {
-            console.log('📝 Creating memory in database:', memoryUpdate)
+            console.log('📝 Creating memory in database with data:', {
+              userId,
+              content: memoryUpdate.content,
+              category: memoryUpdate.category,
+              importance: memoryUpdate.importance,
+              source_type: 'conversation',
+              source_message: messages[messages.length - 1]?.content
+            })
+            
             const memoryId = await createMemory(userId, memoryUpdate.content, {
               category: memoryUpdate.category,
               importance: memoryUpdate.importance,
               source_type: 'conversation',
               source_message: messages[messages.length - 1]?.content
             })
+
+            console.log('✅ Memory created successfully with ID:', memoryId)
 
             memoryUpdates.push({
               id: memoryId,
@@ -349,6 +362,7 @@ export async function POST(req: Request) {
             console.log(`✅ Memory ${memoryUpdate.isNew ? 'created' : 'updated'}: ${memoryId}`)
           } catch (error) {
             console.error('❌ Failed to create/update memory:', error)
+            console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace')
           }
         } else {
           console.log('⚠️ Invalid memory update skipped:', memoryUpdate)
@@ -362,7 +376,7 @@ export async function POST(req: Request) {
         }
       }
     } else {
-      console.log('❌ No memory updates found in AI response')
+      console.log('❌ No memory updates found to process')
     }
 
     // Clean response by removing special formatting

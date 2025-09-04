@@ -255,12 +255,41 @@ export function EnhancedOnboardingWizard() {
   })
 
   React.useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       console.log('🔑 Auth state changed in enhanced onboarding:', currentUser?.uid, currentUser?.email)
       setUser(currentUser)
       if (!currentUser) {
         console.log('❌ No authenticated user, redirecting to home')
         router.push("/")
+        return
+      }
+
+      // Check if user has already completed onboarding
+      try {
+        console.log('🔍 Checking if user has completed onboarding...')
+        const idToken = await currentUser.getIdToken()
+        const profileResponse = await fetch("/api/profile", {
+          headers: {
+            "Authorization": `Bearer ${idToken}`,
+          },
+        })
+
+        if (profileResponse.ok) {
+          const profileData = await profileResponse.json()
+          const onboardingComplete = profileData.profile?.onboarding_complete === true
+          
+          if (onboardingComplete) {
+            console.log('✅ User has already completed onboarding, redirecting to dashboard')
+            router.push("/dashboard")
+            return
+          } else {
+            console.log('📝 User needs to complete onboarding')
+          }
+        } else {
+          console.log('⚠️ Could not fetch profile, proceeding with onboarding')
+        }
+      } catch (error) {
+        console.error('❌ Error checking onboarding status:', error)
       }
     })
     return unsubscribe

@@ -68,7 +68,7 @@
 
 /* Map font variables to Tailwind tokens */
 @theme inline {
-  --font-sans: var(--font-open-sans);
+  --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -108,7 +108,7 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-/* Apply Work Sans for headings as requested */
+/* Apply Inter for headings */
 h1,
 h2,
 h3,
@@ -116,7 +116,7 @@ h4,
 h5,
 h6 {
   font-family:
-    var(--font-work-sans), var(--font-open-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
 }
 
 @layer base {
@@ -126,4 +126,10 @@ h6 {
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Lighter placeholder text */
+.placeholder-light::placeholder {
+  color: rgb(156 163 175 / 0.6); /* gray-400 with 60% opacity */
+  opacity: 0.6;
 }

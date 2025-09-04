@@ -1,21 +1,15 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Work_Sans, Open_Sans } from "next/font/google"
+import { Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import { Providers } from "@/components/providers"
 import "./globals.css"
 
-const workSans = Work_Sans({
+const inter = Inter({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-work-sans",
-})
-
-const openSans = Open_Sans({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-open-sans",
+  variable: "--font-inter",
 })
 
 export const metadata: Metadata = {
@@ -30,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${workSans.variable} ${openSans.variable}`}>
+    <html lang="en" className={`${inter.variable}`}>
       <body className="font-sans">
         <Suspense fallback={null}>{children}</Suspense>
         <Analytics />

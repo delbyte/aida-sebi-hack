@@ -39,18 +39,19 @@ const fetcher = async (url: string) => {
 }
 
 export default function Dashboard() {
-  const [userId, setUserId] = React.useState<string | null>(null)
-  const { data, mutate } = useSWR(userId ? `/api/finances?userId=${userId}` : null, fetcher)
+  const { data, mutate } = useSWR('/api/finances', fetcher)
   const [newEntry, setNewEntry] = React.useState({
     type: "",
     amount: "",
     category: "",
     description: "",
+    currency: "INR",
+    payment_method: "",
   })
 
   React.useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUserId(user?.uid || null)
+      // Authentication is handled via tokens in the fetcher
     })
     return unsubscribe
   }, [])
@@ -70,7 +71,7 @@ export default function Dashboard() {
   }, [finances])
 
   async function addEntry() {
-    if (!newEntry.type || !newEntry.amount || !userId) return
+    if (!newEntry.type || !newEntry.amount) return
 
     try {
       const user = auth.currentUser
@@ -100,7 +101,7 @@ export default function Dashboard() {
       } else {
         console.log('✅ POST Success')
         mutate()
-        setNewEntry({ type: "", amount: "", category: "", description: "" })
+        setNewEntry({ type: "", amount: "", category: "", description: "", currency: "INR", payment_method: "" })
       }
     } catch (error) {
       console.error("❌ Error adding transaction:", error)
@@ -144,6 +145,8 @@ export default function Dashboard() {
                 <SelectContent>
                   <SelectItem value="income">Income</SelectItem>
                   <SelectItem value="expense">Expense</SelectItem>
+                  <SelectItem value="transfer">Transfer</SelectItem>
+                  <SelectItem value="investment">Investment</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -158,13 +161,42 @@ export default function Dashboard() {
               />
             </div>
             <div>
+              <Label htmlFor="currency">Currency</Label>
+              <Select value={newEntry.currency} onValueChange={(value) => setNewEntry((e) => ({ ...e, currency: value }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="INR">INR (₹)</SelectItem>
+                  <SelectItem value="USD">USD ($)</SelectItem>
+                  <SelectItem value="EUR">EUR (€)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label htmlFor="category">Category</Label>
               <Input
                 id="category"
                 value={newEntry.category}
                 onChange={(e) => setNewEntry((entry) => ({ ...entry, category: e.target.value }))}
-                placeholder="e.g., Salary, Food"
+                placeholder="e.g., Salary, Food, Transport"
               />
+            </div>
+            <div>
+              <Label htmlFor="payment_method">Payment Method</Label>
+              <Select value={newEntry.payment_method} onValueChange={(value) => setNewEntry((e) => ({ ...e, payment_method: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select payment method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="card">Credit/Debit Card</SelectItem>
+                  <SelectItem value="upi">UPI</SelectItem>
+                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="wallet">Digital Wallet</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="description">Description</Label>
@@ -172,7 +204,7 @@ export default function Dashboard() {
                 id="description"
                 value={newEntry.description}
                 onChange={(e) => setNewEntry((entry) => ({ ...entry, description: e.target.value }))}
-                placeholder="Optional"
+                placeholder="Optional description"
               />
             </div>
           </div>
@@ -187,10 +219,21 @@ export default function Dashboard() {
         <CardContent>
           <div className="space-y-2">
             {finances.slice(0, 10).map((item: any) => (
-              <div key={item.id} className="flex justify-between">
-                <span>{item.date.split('T')[0]} - {item.category}: {item.description}</span>
-                <span className={item.type === 'income' ? 'text-green-600' : 'text-red-600'}>
-                  {item.type === 'income' ? '+' : '-'}{item.amount}
+              <div key={item.id} className="flex justify-between items-center p-2 border rounded">
+                <div className="flex-1">
+                  <div className="font-medium">
+                    {item.date.split('T')[0]} - {item.category}
+                    {item.ai_generated && <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">AI</span>}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {item.description}
+                    {item.payment_method && ` • ${item.payment_method}`}
+                  </div>
+                </div>
+                <span className={`font-medium ${item.type === 'income' ? 'text-green-600' : item.type === 'expense' ? 'text-red-600' : 'text-blue-600'}`}>
+                  {item.type === 'income' ? '+' : item.type === 'expense' ? '-' : ''}
+                  {item.currency === 'INR' ? '₹' : item.currency === 'USD' ? '$' : '€'}
+                  {item.amount}
                 </span>
               </div>
             ))}

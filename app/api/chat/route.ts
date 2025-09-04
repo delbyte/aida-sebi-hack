@@ -3,90 +3,20 @@ import { GoogleGenerativeAI } from "@google/generative-ai"
 import { adminAuth, adminDb } from "@/lib/firebase-admin"
 import { headers } from "next/headers"
 import { parseFinanceFromMessage, FinanceEntry } from "@/lib/ai-finance-parser"
+import { parseMemoryFromMessage, MemoryEntry } from "@/lib/ai-memory-parser"
 import { buildMemoryContext, createMemory, updateMemory } from "@/lib/ai-memory-manager"
 import { parseAIResponse, validateFinanceEntry, validateMemoryUpdate } from "@/lib/ai-response-parser"
 import { buildAIContext, formatContextForAI } from "@/lib/ai-context-builder"
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 const model = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash",
+  model: "gemini-1.5-flash",
   generationConfig: {
     temperature: 0.1, // Lower temperature for more consistent structured output
     topP: 0.8,
     maxOutputTokens: 2048,
   }
 })
-
-// Manual transaction detection functions
-function detectFinancialTransactionsManually(message: string): any[] {
-  const entries = []
-  const lowerMessage = message.toLowerCase()
-
-  // Look for spending patterns
-  const spendPatterns = [
-    /spent\s+₹?(\d+(?:,\d+)*)/g,
-    /paid\s+₹?(\d+(?:,\d+)*)/g,
-    /bought.*₹?(\d+(?:,\d+)*)/g,
-    /cost.*₹?(\d+(?:,\d+)*)/g,
-    /₹?(\d+(?:,\d+)*).*for/g,
-  ]
-
-  for (const pattern of spendPatterns) {
-    let match
-    while ((match = pattern.exec(lowerMessage)) !== null) {
-      const amount = parseInt(match[1].replace(/,/g, ''))
-      if (amount > 0) {
-        // Try to extract category from message
-        let category = 'Other'
-        if (lowerMessage.includes('food') || lowerMessage.includes('biryani') || lowerMessage.includes('eat')) {
-          category = 'Food'
-        } else if (lowerMessage.includes('movie') || lowerMessage.includes('cinema') || lowerMessage.includes('entertainment')) {
-          category = 'Entertainment'
-        } else if (lowerMessage.includes('transport') || lowerMessage.includes('travel') || lowerMessage.includes('bus')) {
-          category = 'Transportation'
-        }
-
-        entries.push({
-          type: 'expense',
-          amount: amount,
-          category: category,
-          description: message.substring(0, 50),
-          date: new Date().toISOString().split('T')[0],
-          confidence: 0.7,
-          currency: 'INR'
-        })
-      }
-    }
-  }
-
-  return entries
-}
-
-function createBasicMemory(message: string): any {
-  console.log('🔍 createBasicMemory called with message:', message)
-  console.log('🔍 Message length:', message.length)
-  
-  // Always create a memory for any financial conversation
-  // Let the AI decide what's important, not rigid patterns
-  
-  // Only skip if the message is too short or generic
-  if (message.length < 10 || 
-      /^(hi|hello|hey|ok|yes|no|thanks|thank you)$/i.test(message.trim())) {
-    console.log('❌ Message too short or generic, skipping memory creation')
-    return null
-  }
-
-  // Create a memory for any meaningful conversation
-  const memory = {
-    content: `User mentioned: "${message}"`,
-    category: 'conversation',
-    importance: 5, // Default importance, let AI context determine real importance
-    isNew: true
-  }
-  
-  console.log('✅ Created basic memory:', memory)
-  return memory
-}
 
 async function verifyFirebaseToken() {
   const headersList = headers()
@@ -211,23 +141,30 @@ export async function POST(req: Request) {
     // MANUAL FALLBACK: If AI didn't create structured data, try to detect transactions manually
     if (parsedResponse.financeEntries.length === 0) {
       console.log('⚠️ No structured finance data found, trying manual detection...')
-      const manualEntries = detectFinancialTransactionsManually(messages[messages.length - 1]?.content || "")
-      if (manualEntries.length > 0) {
-        console.log('✅ Manual detection found entries:', manualEntries)
-        parsedResponse.financeEntries = manualEntries
+      const userMessage = messages[messages.length - 1]?.content || ""
+      const parsedFinances = parseFinanceFromMessage(userMessage)
+      if (parsedFinances.entries.length > 0) {
+        console.log('✅ Manual finance detection found entries:', parsedFinances.entries)
+        parsedResponse.financeEntries = parsedFinances.entries
       }
     }
 
     if (parsedResponse.memoryUpdates.length === 0) {
-      console.log('⚠️ No structured memory data found, creating basic memory...')
-      const basicMemory = createBasicMemory(messages[messages.length - 1]?.content || "")
-      console.log('🔍 Basic memory result:', basicMemory)
-      if (basicMemory) {
-        console.log('✅ Adding basic memory to parsed response')
-        parsedResponse.memoryUpdates = [basicMemory]
-      } else {
-        console.log('❌ Basic memory creation returned null')
+      console.log('⚠️ No structured memory data found, trying manual detection...')
+      const userMessage = messages[messages.length - 1]?.content || ""
+      const parsedMemories = parseMemoryFromMessage(userMessage)
+      if (parsedMemories.entries.length > 0) {
+        console.log('✅ Manual memory detection found entries:', parsedMemories.entries)
+        // Convert MemoryEntry to MemoryUpdate format
+        parsedResponse.memoryUpdates = parsedMemories.entries.map(entry => ({
+          content: entry.content,
+          category: entry.category,
+          importance: entry.importance,
+          isNew: true
+        }))
       }
+    } else {
+      console.log('✅ Found structured memory updates from AI:', parsedResponse.memoryUpdates.length)
     }
 
     // Create finance entries if found and valid

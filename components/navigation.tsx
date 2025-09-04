@@ -3,17 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
 import { auth } from "@/lib/firebase"
 import { signOut, User } from "firebase/auth"
 import { useAuthState } from "react-firebase-hooks/auth"
@@ -35,14 +25,38 @@ const navigation = [
 export function Navigation() {
   const pathname = usePathname()
   const [user] = useAuthState(auth)
+  const [isDropdownOpen, setIsDropdownOpen] = React.useState(false)
 
   const handleSignOut = async () => {
     try {
       await signOut(auth)
+      setIsDropdownOpen(false)
     } catch (error) {
       console.error("Sign out error:", error)
     }
   }
+
+  const toggleDropdown = () => {
+    setIsDropdownOpen(!isDropdownOpen)
+  }
+
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      if (!target.closest('.dropdown-container')) {
+        setIsDropdownOpen(false)
+      }
+    }
+
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isDropdownOpen])
 
   const getUserInitials = (user: User | null | undefined) => {
     if (!user?.displayName && !user?.email) return "U"
@@ -83,46 +97,61 @@ export function Navigation() {
             </div>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={user?.photoURL || ""} alt={user?.displayName || ""} />
-                    <AvatarFallback>{getUserInitials(user)}</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">
-                      {user?.displayName || "User"}
-                    </p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {user?.email}
-                    </p>
+            <div className="relative dropdown-container">
+              <button
+                onClick={toggleDropdown}
+                className="relative h-8 w-8 rounded-full p-0 hover:bg-gray-100 transition-colors"
+              >
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={user?.photoURL || ""} alt={user?.displayName || ""} />
+                  <AvatarFallback className="bg-gray-200 text-black">{getUserInitials(user)}</AvatarFallback>
+                </Avatar>
+              </button>
+
+              {isDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                  <div className="p-3 border-b border-gray-200">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none text-black">
+                        {user?.displayName || "User"}
+                      </p>
+                      <p className="text-xs leading-none text-gray-600">
+                        {user?.email}
+                      </p>
+                    </div>
                   </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/settings" className="cursor-pointer">
-                    <UserIcon className="mr-2 h-4 w-4" />
-                    Profile
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard" className="cursor-pointer">
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    Finances
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+
+                  <div className="py-1">
+                    <Link
+                      href="/settings"
+                      className="flex items-center px-3 py-2 text-sm text-black hover:bg-gray-100 transition-colors"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      <UserIcon className="mr-2 h-4 w-4 text-black" />
+                      Profile
+                    </Link>
+                    <Link
+                      href="/dashboard"
+                      className="flex items-center px-3 py-2 text-sm text-black hover:bg-gray-100 transition-colors"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      <CreditCard className="mr-2 h-4 w-4 text-black" />
+                      Finances
+                    </Link>
+                  </div>
+
+                  <div className="border-t border-gray-200 py-1">
+                    <button
+                      onClick={handleSignOut}
+                      className="flex items-center w-full px-3 py-2 text-sm text-black hover:bg-gray-100 transition-colors text-left"
+                    >
+                      <LogOut className="mr-2 h-4 w-4 text-black" />
+                      Sign out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

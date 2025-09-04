@@ -158,128 +158,163 @@ export default function ChatUI() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-      {/* AI Capabilities Sidebar */}
-      <div className="lg:col-span-1 space-y-4">
-        {/* Profile Info */}
-        <Card>
-          <CardContent className="p-4 text-sm text-muted-foreground">
-            {profData?.profile ? (
-              <p>
-                Personalized to {profData.profile.full_name || "you"} | Goals: {profData.profile.goals?.primary || "—"} | Currency:{" "}
-                {profData.profile.currency || "—"}
-              </p>
-            ) : (
-              <p>We’ll personalize once your profile is set.</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* AI Capabilities Cards */}
-        <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200 dark:from-blue-950 dark:to-indigo-950 dark:border-blue-800">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <DollarSign className="w-5 h-5 text-blue-600" />
-              <span className="text-sm font-medium text-blue-900 dark:text-blue-100">Auto Finance Tracking</span>
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
+      {/* Chat Area */}
+      <div className="lg:col-span-3 flex flex-col h-full">
+        <Card className="flex-1 flex flex-col">
+          <CardContent className="flex-1 flex flex-col gap-4 p-4 h-full">
+            <div className="h-[600px] overflow-y-auto pr-4 space-y-4">
+              {messages.map((m, i) => (
+                <div
+                  key={i}
+                  className={`flex items-start gap-3 ${
+                    m.role === "user" ? "justify-end" : ""
+                  }`}
+                >
+                  {m.role === "assistant" && (
+                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold">
+                      A
+                    </div>
+                  )}
+                  <div
+                    className={`rounded-xl px-3 py-2 max-w-[80%] ${
+                      m.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-foreground"
+                    }`}
+                  >
+                    <div className="whitespace-pre-wrap">{m.content}</div>
+                    <div className="text-xs opacity-60 mt-1">
+                      {new Date().toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </div>
+                  </div>
+                  {m.role === "user" && (
+                    <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-secondary-foreground font-bold">
+                      {profData?.profile?.full_name?.[0] || "U"}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {loading && (
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold">
+                    A
+                  </div>
+                  <div className="rounded-xl px-3 py-2 bg-muted text-foreground">
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 dark:border-gray-100"></div>
+                      A.I.D.A. is thinking...
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-            <p className="text-xs text-blue-700 dark:text-blue-300">
-              Access to your complete financial history - all transactions, investments, income, and expenses
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200 dark:from-purple-950 dark:to-pink-950 dark:border-purple-800">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Brain className="w-5 h-5 text-purple-600" />
-              <span className="text-sm font-medium text-purple-900 dark:text-purple-100">Memory Learning</span>
+            <div className="flex gap-2 mt-auto pt-4 border-t">
+              <Input
+                placeholder="Ask about your finances, investments, or spending patterns..."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && send()}
+                disabled={loading}
+                className="flex-1"
+              />
+              <Button onClick={send} disabled={loading || !input.trim()}>
+                <MessageSquare className="w-5 h-5" />
+              </Button>
             </div>
-            <p className="text-xs text-purple-700 dark:text-purple-300">
-              Learns from your complete financial history and conversation patterns
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200 dark:from-green-950 dark:to-emerald-950 dark:border-green-800">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <BarChart3 className="w-5 h-5 text-green-600" />
-              <span className="text-sm font-medium text-green-900 dark:text-green-100">Smart Insights</span>
-            </div>
-            <p className="text-xs text-green-700 dark:text-green-300">
-              Provides insights based on your complete financial timeline and patterns
-            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Chat Area */}
-      <div className="lg:col-span-3 space-y-4">
-        <div className="flex justify-between">
-        </div>
+      {/* AI Capabilities & Profile Sidebar */}
+      <div className="lg:col-span-1 space-y-6">
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="text-lg font-semibold mb-3">Your Profile</h3>
+            <div className="text-sm text-muted-foreground space-y-2">
+              {profData?.profile ? (
+                <>
+                  <p>
+                    <span className="font-medium text-foreground">Name:</span>{" "}
+                    {profData.profile.full_name || "—"}
+                  </p>
+                  <p>
+                    <span className="font-medium text-foreground">Goals:</span>{" "}
+                    {profData.profile.goals?.primary || "—"}
+                  </p>
+                  <p>
+                    <span className="font-medium text-foreground">Currency:</span>{" "}
+                    {profData.profile.currency || "—"}
+                  </p>
+                </>
+              ) : (
+                <p>We’ll personalize once your profile is set.</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
-        {/* AI Activity Notifications */}
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="text-lg font-semibold mb-3">AI Capabilities</h3>
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <DollarSign className="w-5 h-5 mt-1 text-blue-500" />
+                <div>
+                  <p className="font-medium text-sm">Auto Finance Tracking</p>
+                  <p className="text-xs text-muted-foreground">
+                    Access your complete financial history.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <Brain className="w-5 h-5 mt-1 text-purple-500" />
+                <div>
+                  <p className="font-medium text-sm">Memory Learning</p>
+                  <p className="text-xs text-muted-foreground">
+                    Learns from your conversations.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <BarChart3 className="w-5 h-5 mt-1 text-green-500" />
+                <div>
+                  <p className="font-medium text-sm">Smart Insights</p>
+                  <p className="text-xs text-muted-foreground">
+                    Provides insights based on your data.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
         {notifications.length > 0 && (
-          <div className="space-y-2">
-            {notifications.map(notification => (
-              <Alert key={notification.id} className="border-l-4 border-l-green-500">
-                <div className="flex items-center gap-2">
-                  {notification.type === 'finance' ? (
-                    <TrendingUp className="w-4 h-4 text-green-600" />
-                  ) : (
-                    <Brain className="w-4 h-4 text-blue-600" />
-                  )}
-                  <AlertDescription className="text-sm">
-                    {notification.message}
-                  </AlertDescription>
-                </div>
-              </Alert>
-            ))}
-          </div>
+          <Card>
+            <CardContent className="p-4">
+              <h3 className="text-lg font-semibold mb-3">Live AI Activity</h3>
+              <div className="space-y-2">
+                {notifications.map(notification => (
+                  <Alert key={notification.id} className="border-l-4 border-l-green-500 text-xs p-2">
+                    <div className="flex items-center gap-2">
+                      {notification.type === 'finance' ? (
+                        <TrendingUp className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <Brain className="w-4 h-4 text-blue-600" />
+                      )}
+                      <AlertDescription>
+                        {notification.message}
+                      </AlertDescription>
+                    </div>
+                  </Alert>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         )}
-
-        {/* Chat Messages */}
-        <div className="space-y-3 min-h-[400px] max-h-[600px] overflow-y-auto">
-          {messages.map((m, i) => (
-            <div key={i} className={m.role === "user" ? "text-right" : "text-left"}>
-              <div
-                className={`inline-block rounded-xl px-3 py-2 max-w-[80%] ${
-                  m.role === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-foreground"
-                }`}
-              >
-                <div className="whitespace-pre-wrap">{m.content}</div>
-              </div>
-            </div>
-          ))}
-
-          {/* Loading indicator */}
-          {loading && (
-            <div className="text-left">
-              <div className="inline-block rounded-xl px-3 py-2 bg-muted text-foreground">
-                <div className="flex items-center gap-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
-                  A.I.D.A. is thinking...
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Input Area */}
-        <div className="flex gap-2">
-          <Input
-            placeholder="Ask about your complete financial history, investments, spending patterns, or any financial question"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()}
-            disabled={loading}
-          />
-          <Button onClick={send} disabled={loading || !input.trim()}>
-            {loading ? "Thinking..." : "Send"}
-          </Button>
-        </div>
       </div>
     </div>
   )

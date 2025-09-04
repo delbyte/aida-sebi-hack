@@ -35,12 +35,12 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
     id: 'financial_profile',
     title: 'Financial Profile',
     description: 'Tell us about your financial situation',
-    fields: ['monthly_income', 'annual_income', 'currency', 'risk_tolerance', 'investment_horizon'],
+    fields: ['monthly_income', 'currency', 'risk_tolerance', 'investment_horizon'],
     required: true
   },
   {
     id: 'banking_info',
-    title: 'Banking Information',
+    title: 'Banking Information (OPTIONAL)',
     description: 'Help us understand your banking setup',
     fields: ['primary_bank', 'bank_accounts'],
     required: false
@@ -54,21 +54,21 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
   },
   {
     id: 'credit_debt',
-    title: 'Credit & Debt',
+    title: 'Credit & Debt (OPTIONAL)',
     description: 'Information about your credit cards and loans',
     fields: ['credit_cards', 'loans'],
     required: false
   },
   {
     id: 'investments',
-    title: 'Investments',
+    title: 'Investments (OPTIONAL)',
     description: 'Tell us about your investment portfolio',
     fields: ['investments'],
     required: false
   },
   {
     id: 'insurance',
-    title: 'Insurance',
+    title: 'Insurance (OPTIONAL)',
     description: 'Your insurance coverage details',
     fields: ['insurance'],
     required: false
@@ -87,7 +87,6 @@ interface OnboardingData {
 
   // Financial Profile
   monthly_income: string
-  annual_income: string
   currency: string
   risk_tolerance: number
   investment_horizon: string
@@ -194,6 +193,23 @@ export function EnhancedOnboardingWizard() {
   const [user, setUser] = React.useState<User | null>(null)
   const [completedSteps, setCompletedSteps] = React.useState<Set<number>>(new Set())
 
+  // Utility function for Indian number formatting
+  const formatIndianNumber = (value: string | number): string => {
+    if (!value) return ''
+    const numStr = value.toString().replace(/,/g, '')
+    const num = parseFloat(numStr)
+    if (isNaN(num)) return value.toString()
+
+    return num.toLocaleString('en-IN')
+  }
+
+  // Utility function to parse formatted number back to plain number
+  const parseFormattedNumber = (value: string | number | undefined | null): number => {
+    if (!value) return 0
+    const stringValue = typeof value === 'string' ? value : value.toString()
+    return parseFloat(stringValue.replace(/,/g, '')) || 0
+  }
+
   const [data, setData] = React.useState<OnboardingData>({
     // Basic Info
     full_name: "",
@@ -206,7 +222,6 @@ export function EnhancedOnboardingWizard() {
 
     // Financial Profile
     monthly_income: "",
-    annual_income: "",
     currency: "INR",
     risk_tolerance: 5,
     investment_horizon: "medium",
@@ -463,7 +478,7 @@ export function EnhancedOnboardingWizard() {
                     value={data.full_name}
                     onChange={(e) => updateData('full_name', e.target.value)}
                     placeholder="Enter your full name"
-                    className="h-11"
+                    className="h-11 placeholder-light"
                   />
                 </div>
                 <div className="space-y-2">
@@ -474,7 +489,7 @@ export function EnhancedOnboardingWizard() {
                     value={data.email}
                     onChange={(e) => updateData('email', e.target.value)}
                     placeholder="your.email@example.com"
-                    className="h-11"
+                    className="h-11 placeholder-light"
                   />
                 </div>
                 <div className="space-y-2">
@@ -484,7 +499,7 @@ export function EnhancedOnboardingWizard() {
                     value={data.phone}
                     onChange={(e) => updateData('phone', e.target.value)}
                     placeholder="+91 9876543210"
-                    className="h-11"
+                    className="h-11 placeholder-light"
                   />
                 </div>
                 <div className="space-y-2">
@@ -494,7 +509,7 @@ export function EnhancedOnboardingWizard() {
                     type="date"
                     value={data.date_of_birth}
                     onChange={(e) => updateData('date_of_birth', e.target.value)}
-                    className="h-11"
+                    className="h-11 placeholder-light"
                   />
                 </div>
                 <div className="space-y-2">
@@ -518,7 +533,7 @@ export function EnhancedOnboardingWizard() {
                     value={data.occupation}
                     onChange={(e) => updateData('occupation', e.target.value)}
                     placeholder="Software Engineer, Doctor, etc."
-                    className="h-11"
+                    className="h-11 placeholder-light"
                   />
                 </div>
                 <div className="space-y-2 md:col-span-2">
@@ -547,23 +562,18 @@ export function EnhancedOnboardingWizard() {
                   <Label htmlFor="monthly_income">Monthly Income (₹) *</Label>
                   <Input
                     id="monthly_income"
-                    type="number"
-                    value={data.monthly_income}
-                    onChange={(e) => updateData('monthly_income', e.target.value)}
-                    placeholder="50000"
-                    className="h-11"
+                    type="text"
+                    value={data.monthly_income ? formatIndianNumber(data.monthly_income) : ''}
+                    onChange={(e) => updateData('monthly_income', parseFormattedNumber(e.target.value))}
+                    placeholder="50,000"
+                    className="h-11 placeholder-light"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="annual_income">Annual Income (₹)</Label>
-                  <Input
-                    id="annual_income"
-                    type="number"
-                    value={data.annual_income}
-                    onChange={(e) => updateData('annual_income', e.target.value)}
-                    placeholder="600000"
-                    className="h-11"
-                  />
+                  <Label>Annual Income (₹)</Label>
+                  <div className="h-11 px-3 py-2 bg-muted rounded-md border flex items-center text-sm text-muted-foreground">
+                    {data.monthly_income ? formatIndianNumber(parseFormattedNumber(data.monthly_income) * 12) : '0'}
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="currency">Currency *</Label>
@@ -593,14 +603,16 @@ export function EnhancedOnboardingWizard() {
                 </div>
                 <div className="space-y-4 md:col-span-2">
                   <Label htmlFor="risk_tolerance">Risk Tolerance: {data.risk_tolerance}/10</Label>
-                  <Slider
-                    value={[data.risk_tolerance]}
-                    min={1}
-                    max={10}
-                    step={1}
-                    onValueChange={(value) => updateData('risk_tolerance', value[0])}
-                    className="py-4"
-                  />
+                  <div className="bg-gray-300 rounded-full p-4 py-6 transition-all duration-300 ease-in-out">
+                    <Slider
+                      value={[data.risk_tolerance]}
+                      min={1}
+                      max={10}
+                      step={1}
+                      onValueChange={(value) => updateData('risk_tolerance', value[0])}
+                      className="py-2 [&_[role=slider]]:transition-all [&_[role=slider]]:duration-300 [&_[role=slider]]:ease-out [&_[role=slider]]:hover:scale-110 [&_[role=slider]]:active:scale-125"
+                    />
+                  </div>
                   <div className="flex justify-between text-sm text-muted-foreground">
                     <span>Conservative</span>
                     <span>Moderate</span>
@@ -620,7 +632,7 @@ export function EnhancedOnboardingWizard() {
                     value={data.primary_bank}
                     onChange={(e) => updateData('primary_bank', e.target.value)}
                     placeholder="e.g., HDFC Bank, ICICI Bank"
-                    className="h-11"
+                    className="h-11 placeholder-light"
                   />
                 </div>
 
@@ -680,7 +692,7 @@ export function EnhancedOnboardingWizard() {
                                   updateData('bank_accounts', newAccounts)
                                 }}
                                 placeholder="Enter account number"
-                                className="h-9"
+                                className="h-9 placeholder-light"
                               />
                             </div>
                             <div className="space-y-2">
@@ -693,7 +705,7 @@ export function EnhancedOnboardingWizard() {
                                   updateData('bank_accounts', newAccounts)
                                 }}
                                 placeholder="e.g., HDFC Bank"
-                                className="h-9"
+                                className="h-9 placeholder-light"
                               />
                             </div>
                             <div className="space-y-2">
@@ -726,7 +738,7 @@ export function EnhancedOnboardingWizard() {
                                   updateData('bank_accounts', newAccounts)
                                 }}
                                 placeholder="e.g., HDFC0001234"
-                                className="h-9"
+                                className="h-9 placeholder-light"
                               />
                             </div>
                           </div>
@@ -758,11 +770,11 @@ export function EnhancedOnboardingWizard() {
                     <Label htmlFor="target_amount">Target Amount (₹)</Label>
                     <Input
                       id="target_amount"
-                      type="number"
-                      value={data.goals.target_amount || ''}
-                      onChange={(e) => updateNestedData('goals.target_amount', Number(e.target.value) || 0)}
-                      placeholder="1000000"
-                      className="h-11"
+                      type="text"
+                      value={data.goals.target_amount ? formatIndianNumber(data.goals.target_amount) : ''}
+                      onChange={(e) => updateNestedData('goals.target_amount', parseFormattedNumber(e.target.value))}
+                      placeholder="10,00,000"
+                      className="h-11 placeholder-light"
                     />
                   </div>
                   <div className="space-y-2">
@@ -779,11 +791,11 @@ export function EnhancedOnboardingWizard() {
                     <Label htmlFor="monthly_savings">Monthly Savings Target (₹)</Label>
                     <Input
                       id="monthly_savings"
-                      type="number"
-                      value={data.goals.monthly_savings_target || ''}
-                      onChange={(e) => updateNestedData('goals.monthly_savings_target', Number(e.target.value) || 0)}
-                      placeholder="15000"
-                      className="h-11"
+                      type="text"
+                      value={data.goals.monthly_savings_target ? formatIndianNumber(data.goals.monthly_savings_target) : ''}
+                      onChange={(e) => updateNestedData('goals.monthly_savings_target', parseFormattedNumber(e.target.value))}
+                      placeholder="15,000"
+                      className="h-11 placeholder-light"
                     />
                   </div>
                 </div>
@@ -799,11 +811,11 @@ export function EnhancedOnboardingWizard() {
                         </Label>
                         <Input
                           id={category}
-                          type="number"
-                          value={amount || ''}
-                          onChange={(e) => updateNestedData(`monthly_budgets.${category}`, Number(e.target.value) || 0)}
+                          type="text"
+                          value={amount ? formatIndianNumber(amount) : ''}
+                          onChange={(e) => updateNestedData(`monthly_budgets.${category}`, parseFormattedNumber(e.target.value))}
                           placeholder="0"
-                          className="h-11"
+                          className="h-11 placeholder-light"
                         />
                       </div>
                     ))}
@@ -874,7 +886,7 @@ export function EnhancedOnboardingWizard() {
                                   updateData('credit_cards', newCards)
                                 }}
                                 placeholder="e.g., HDFC Unnati"
-                                className="h-9"
+                                className="h-9 placeholder-light"
                               />
                             </div>
                             <div className="space-y-2">
@@ -887,35 +899,35 @@ export function EnhancedOnboardingWizard() {
                                   updateData('credit_cards', newCards)
                                 }}
                                 placeholder="e.g., HDFC Bank"
-                                className="h-9"
+                                className="h-9 placeholder-light"
                               />
                             </div>
                             <div className="space-y-2">
                               <Label>Credit Limit (₹)</Label>
                               <Input
-                                type="number"
-                                value={card.credit_limit || ''}
+                                type="text"
+                                value={card.credit_limit ? formatIndianNumber(card.credit_limit) : ''}
                                 onChange={(e) => {
                                   const newCards = [...data.credit_cards]
-                                  newCards[index].credit_limit = Number(e.target.value) || 0
+                                  newCards[index].credit_limit = parseFormattedNumber(e.target.value)
                                   updateData('credit_cards', newCards)
                                 }}
-                                placeholder="50000"
-                                className="h-9"
+                                placeholder="50,000"
+                                className="h-9 placeholder-light"
                               />
                             </div>
                             <div className="space-y-2">
                               <Label>Outstanding Balance (₹)</Label>
                               <Input
-                                type="number"
-                                value={card.outstanding_balance || ''}
+                                type="text"
+                                value={card.outstanding_balance ? formatIndianNumber(card.outstanding_balance) : ''}
                                 onChange={(e) => {
                                   const newCards = [...data.credit_cards]
-                                  newCards[index].outstanding_balance = Number(e.target.value) || 0
+                                  newCards[index].outstanding_balance = parseFormattedNumber(e.target.value)
                                   updateData('credit_cards', newCards)
                                 }}
-                                placeholder="15000"
-                                className="h-9"
+                                placeholder="15,000"
+                                className="h-9 placeholder-light"
                               />
                             </div>
                             <div className="space-y-2">
@@ -931,21 +943,21 @@ export function EnhancedOnboardingWizard() {
                                   updateData('credit_cards', newCards)
                                 }}
                                 placeholder="15"
-                                className="h-9"
+                                className="h-9 placeholder-light"
                               />
                             </div>
                             <div className="space-y-2">
                               <Label>Minimum Due (₹)</Label>
                               <Input
-                                type="number"
-                                value={card.minimum_due || ''}
+                                type="text"
+                                value={card.minimum_due ? formatIndianNumber(card.minimum_due) : ''}
                                 onChange={(e) => {
                                   const newCards = [...data.credit_cards]
-                                  newCards[index].minimum_due = Number(e.target.value) || 0
+                                  newCards[index].minimum_due = parseFormattedNumber(e.target.value)
                                   updateData('credit_cards', newCards)
                                 }}
                                 placeholder="500"
-                                className="h-9"
+                                className="h-9 placeholder-light"
                               />
                             </div>
                           </div>
@@ -1043,42 +1055,42 @@ export function EnhancedOnboardingWizard() {
                             <div className="space-y-2">
                               <Label>Principal Amount (₹)</Label>
                               <Input
-                                type="number"
-                                value={loan.principal_amount || ''}
+                                type="text"
+                                value={loan.principal_amount ? formatIndianNumber(loan.principal_amount) : ''}
                                 onChange={(e) => {
                                   const newLoans = [...data.loans]
-                                  newLoans[index].principal_amount = Number(e.target.value) || 0
+                                  newLoans[index].principal_amount = parseFormattedNumber(e.target.value)
                                   updateData('loans', newLoans)
                                 }}
-                                placeholder="500000"
+                                placeholder="5,00,000"
                                 className="h-9"
                               />
                             </div>
                             <div className="space-y-2">
                               <Label>Outstanding Balance (₹)</Label>
                               <Input
-                                type="number"
-                                value={loan.outstanding_balance || ''}
+                                type="text"
+                                value={loan.outstanding_balance ? formatIndianNumber(loan.outstanding_balance) : ''}
                                 onChange={(e) => {
                                   const newLoans = [...data.loans]
-                                  newLoans[index].outstanding_balance = Number(e.target.value) || 0
+                                  newLoans[index].outstanding_balance = parseFormattedNumber(e.target.value)
                                   updateData('loans', newLoans)
                                 }}
-                                placeholder="450000"
+                                placeholder="4,50,000"
                                 className="h-9"
                               />
                             </div>
                             <div className="space-y-2">
                               <Label>Monthly EMI (₹)</Label>
                               <Input
-                                type="number"
-                                value={loan.monthly_emi || ''}
+                                type="text"
+                                value={loan.monthly_emi ? formatIndianNumber(loan.monthly_emi) : ''}
                                 onChange={(e) => {
                                   const newLoans = [...data.loans]
-                                  newLoans[index].monthly_emi = Number(e.target.value) || 0
+                                  newLoans[index].monthly_emi = parseFormattedNumber(e.target.value)
                                   updateData('loans', newLoans)
                                 }}
-                                placeholder="8500"
+                                placeholder="8,500"
                                 className="h-9"
                               />
                             </div>
@@ -1200,42 +1212,42 @@ export function EnhancedOnboardingWizard() {
                             <div className="space-y-2">
                               <Label>Investment Amount (₹)</Label>
                               <Input
-                                type="number"
-                                value={fund.investment_amount || ''}
+                                type="text"
+                                value={fund.investment_amount ? formatIndianNumber(fund.investment_amount) : ''}
                                 onChange={(e) => {
                                   const newFunds = [...data.investments.mutual_funds]
-                                  newFunds[index].investment_amount = Number(e.target.value) || 0
+                                  newFunds[index].investment_amount = parseFormattedNumber(e.target.value)
                                   updateNestedData('investments.mutual_funds', newFunds)
                                 }}
-                                placeholder="50000"
+                                placeholder="50,000"
                                 className="h-9"
                               />
                             </div>
                             <div className="space-y-2">
                               <Label>Current Value (₹)</Label>
                               <Input
-                                type="number"
-                                value={fund.current_value || ''}
+                                type="text"
+                                value={fund.current_value ? formatIndianNumber(fund.current_value) : ''}
                                 onChange={(e) => {
                                   const newFunds = [...data.investments.mutual_funds]
-                                  newFunds[index].current_value = Number(e.target.value) || 0
+                                  newFunds[index].current_value = parseFormattedNumber(e.target.value)
                                   updateNestedData('investments.mutual_funds', newFunds)
                                 }}
-                                placeholder="55000"
+                                placeholder="55,000"
                                 className="h-9"
                               />
                             </div>
                             <div className="space-y-2 md:col-span-2">
                               <Label>Monthly SIP Amount (₹)</Label>
                               <Input
-                                type="number"
-                                value={fund.sip_amount || ''}
+                                type="text"
+                                value={fund.sip_amount ? formatIndianNumber(fund.sip_amount) : ''}
                                 onChange={(e) => {
                                   const newFunds = [...data.investments.mutual_funds]
-                                  newFunds[index].sip_amount = Number(e.target.value) || 0
+                                  newFunds[index].sip_amount = parseFormattedNumber(e.target.value)
                                   updateNestedData('investments.mutual_funds', newFunds)
                                 }}
-                                placeholder="5000"
+                                placeholder="5,000"
                                 className="h-9"
                               />
                             </div>
@@ -1323,28 +1335,28 @@ export function EnhancedOnboardingWizard() {
                             <div className="space-y-2">
                               <Label>Average Price (₹)</Label>
                               <Input
-                                type="number"
-                                value={stock.average_price || ''}
+                                type="text"
+                                value={stock.average_price ? formatIndianNumber(stock.average_price) : ''}
                                 onChange={(e) => {
                                   const newStocks = [...data.investments.stocks]
-                                  newStocks[index].average_price = Number(e.target.value) || 0
+                                  newStocks[index].average_price = parseFormattedNumber(e.target.value)
                                   updateNestedData('investments.stocks', newStocks)
                                 }}
-                                placeholder="2500"
+                                placeholder="2,500"
                                 className="h-9"
                               />
                             </div>
                             <div className="space-y-2">
                               <Label>Current Price (₹)</Label>
                               <Input
-                                type="number"
-                                value={stock.current_price || ''}
+                                type="text"
+                                value={stock.current_price ? formatIndianNumber(stock.current_price) : ''}
                                 onChange={(e) => {
                                   const newStocks = [...data.investments.stocks]
-                                  newStocks[index].current_price = Number(e.target.value) || 0
+                                  newStocks[index].current_price = parseFormattedNumber(e.target.value)
                                   updateNestedData('investments.stocks', newStocks)
                                 }}
-                                placeholder="2800"
+                                placeholder="2,800"
                                 className="h-9"
                               />
                             </div>
@@ -1418,14 +1430,14 @@ export function EnhancedOnboardingWizard() {
                             <div className="space-y-2">
                               <Label>Principal Amount (₹)</Label>
                               <Input
-                                type="number"
-                                value={fd.principal || ''}
+                                type="text"
+                                value={fd.principal ? formatIndianNumber(fd.principal) : ''}
                                 onChange={(e) => {
                                   const newFDs = [...data.investments.fixed_deposits]
-                                  newFDs[index].principal = Number(e.target.value) || 0
+                                  newFDs[index].principal = parseFormattedNumber(e.target.value)
                                   updateNestedData('investments.fixed_deposits', newFDs)
                                 }}
-                                placeholder="100000"
+                                placeholder="1,00,000"
                                 className="h-9"
                               />
                             </div>
@@ -1546,28 +1558,28 @@ export function EnhancedOnboardingWizard() {
                             <div className="space-y-2">
                               <Label>Sum Assured (₹)</Label>
                               <Input
-                                type="number"
-                                value={policy.sum_assured || ''}
+                                type="text"
+                                value={policy.sum_assured ? formatIndianNumber(policy.sum_assured) : ''}
                                 onChange={(e) => {
                                   const newPolicies = [...data.insurance.life_insurance]
-                                  newPolicies[index].sum_assured = Number(e.target.value) || 0
+                                  newPolicies[index].sum_assured = parseFormattedNumber(e.target.value)
                                   updateNestedData('insurance.life_insurance', newPolicies)
                                 }}
-                                placeholder="1000000"
+                                placeholder="10,00,000"
                                 className="h-9"
                               />
                             </div>
                             <div className="space-y-2">
                               <Label>Premium Amount (₹)</Label>
                               <Input
-                                type="number"
-                                value={policy.premium_amount || ''}
+                                type="text"
+                                value={policy.premium_amount ? formatIndianNumber(policy.premium_amount) : ''}
                                 onChange={(e) => {
                                   const newPolicies = [...data.insurance.life_insurance]
-                                  newPolicies[index].premium_amount = Number(e.target.value) || 0
+                                  newPolicies[index].premium_amount = parseFormattedNumber(e.target.value)
                                   updateNestedData('insurance.life_insurance', newPolicies)
                                 }}
-                                placeholder="12000"
+                                placeholder="12,000"
                                 className="h-9"
                               />
                             </div>
@@ -1674,28 +1686,28 @@ export function EnhancedOnboardingWizard() {
                             <div className="space-y-2">
                               <Label>Sum Assured (₹)</Label>
                               <Input
-                                type="number"
-                                value={policy.sum_assured || ''}
+                                type="text"
+                                value={policy.sum_assured ? formatIndianNumber(policy.sum_assured) : ''}
                                 onChange={(e) => {
                                   const newPolicies = [...data.insurance.health_insurance]
-                                  newPolicies[index].sum_assured = Number(e.target.value) || 0
+                                  newPolicies[index].sum_assured = parseFormattedNumber(e.target.value)
                                   updateNestedData('insurance.health_insurance', newPolicies)
                                 }}
-                                placeholder="500000"
+                                placeholder="5,00,000"
                                 className="h-9"
                               />
                             </div>
                             <div className="space-y-2">
                               <Label>Premium Amount (₹)</Label>
                               <Input
-                                type="number"
-                                value={policy.premium_amount || ''}
+                                type="text"
+                                value={policy.premium_amount ? formatIndianNumber(policy.premium_amount) : ''}
                                 onChange={(e) => {
                                   const newPolicies = [...data.insurance.health_insurance]
-                                  newPolicies[index].premium_amount = Number(e.target.value) || 0
+                                  newPolicies[index].premium_amount = parseFormattedNumber(e.target.value)
                                   updateNestedData('insurance.health_insurance', newPolicies)
                                 }}
-                                placeholder="8000"
+                                placeholder="8,000"
                                 className="h-9"
                               />
                             </div>
@@ -1802,14 +1814,14 @@ export function EnhancedOnboardingWizard() {
                             <div className="space-y-2">
                               <Label>Premium Amount (₹)</Label>
                               <Input
-                                type="number"
-                                value={policy.premium_amount || ''}
+                                type="text"
+                                value={policy.premium_amount ? formatIndianNumber(policy.premium_amount) : ''}
                                 onChange={(e) => {
                                   const newPolicies = [...data.insurance.vehicle_insurance]
-                                  newPolicies[index].premium_amount = Number(e.target.value) || 0
+                                  newPolicies[index].premium_amount = parseFormattedNumber(e.target.value)
                                   updateNestedData('insurance.vehicle_insurance', newPolicies)
                                 }}
-                                placeholder="15000"
+                                placeholder="15,000"
                                 className="h-9"
                               />
                             </div>

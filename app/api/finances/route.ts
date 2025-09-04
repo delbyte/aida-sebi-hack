@@ -34,31 +34,30 @@ export async function GET(req: Request) {
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
 
-    let query = adminDb.collection("finances").where("userId", "==", userId)
+    let baseQuery = adminDb.collection("finances").where("userId", "==", userId)
 
-    // Apply filters
+    // Apply filters - Note: Firestore requires composite indexes for complex queries
+    // For now, we'll use a simpler approach that doesn't require additional indexes
     if (category) {
-      query = query.where("category", "==", category)
+      baseQuery = baseQuery.where("category", "==", category)
     }
     if (type) {
-      query = query.where("type", "==", type)
+      baseQuery = baseQuery.where("type", "==", type)
     }
 
-    // Date range filter
+    // Only apply date filters if provided, but avoid complex ordering for now
     if (startDate || endDate) {
       if (startDate) {
-        query = query.where("date", ">=", new Date(startDate))
+        baseQuery = baseQuery.where("date", ">=", new Date(startDate))
       }
       if (endDate) {
-        query = query.where("date", "<=", new Date(endDate))
+        baseQuery = baseQuery.where("date", "<=", new Date(endDate))
       }
     }
 
-    // Order by date descending and apply pagination
-    query = query.orderBy("date", "desc").limit(limit)
-
-    const querySnapshot = await query.get()
-    const finances = querySnapshot.docs.map(doc => ({
+    // Get all matching documents first, then sort in memory
+    const snapshot = await baseQuery.get()
+    let allFinances = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
       // Convert Firestore timestamps to ISO strings for JSON serialization
@@ -66,6 +65,14 @@ export async function GET(req: Request) {
       createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt,
       updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || doc.data().updatedAt
     }))
+
+    // Sort by date descending in memory
+    allFinances.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+    // Apply pagination in memory
+    const startIndex = offset
+    const endIndex = startIndex + limit
+    const finances = allFinances.slice(startIndex, endIndex)
 
     return NextResponse.json({ finances })
   } catch (error) {

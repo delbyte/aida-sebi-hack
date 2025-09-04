@@ -27,49 +27,145 @@ export async function GET(req: Request) {
 
   try {
     const { searchParams } = new URL(req.url)
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = parseInt(searchParams.get('limit') || '100') // Increased default limit
     const offset = parseInt(searchParams.get('offset') || '0')
     const category = searchParams.get('category')
     const type = searchParams.get('type')
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
+    const minAmount = searchParams.get('minAmount')
+    const maxAmount = searchParams.get('maxAmount')
+    const paymentMethod = searchParams.get('paymentMethod')
+    const aiGenerated = searchParams.get('aiGenerated')
+    const sortBy = searchParams.get('sortBy') || 'date' // date, amount, createdAt
+    const sortOrder = searchParams.get('sortOrder') || 'desc' // asc, desc
 
     let baseQuery = adminDb.collection("finances").where("userId", "==", userId)
 
-    // Apply filters - Note: Firestore requires composite indexes for complex queries
-    // For now, we'll use a simpler approach that doesn't require additional indexes
+    // Apply comprehensive filters
     if (category) {
       baseQuery = baseQuery.where("category", "==", category)
     }
     if (type) {
       baseQuery = baseQuery.where("type", "==", type)
     }
+    if (paymentMethod) {
+      baseQuery = baseQuery.where("payment_method", "==", paymentMethod)
+    }
+    if (aiGenerated && aiGenerated.trim() !== '') {
+      baseQuery = baseQuery.where("ai_generated", "==", aiGenerated === 'true')
+    }
 
-    // Only apply date filters if provided, but avoid complex ordering for now
+    // Apply date filters if provided
     if (startDate || endDate) {
-      if (startDate) {
-        baseQuery = baseQuery.where("date", ">=", new Date(startDate))
-      }
-      if (endDate) {
-        baseQuery = baseQuery.where("date", "<=", new Date(endDate))
+      try {
+        if (startDate) {
+          const start = new Date(startDate)
+          if (!isNaN(start.getTime())) {
+            baseQuery = baseQuery.where("date", ">=", start)
+          }
+        }
+        if (endDate) {
+          const end = new Date(endDate)
+          if (!isNaN(end.getTime())) {
+            baseQuery = baseQuery.where("date", "<=", end)
+          }
+        }
+      } catch (error) {
+        console.warn("Invalid date format in query parameters:", { startDate, endDate })
+        // Continue without date filters if dates are invalid
       }
     }
 
-    // Get all matching documents first, then sort in memory
+    // Get all matching documents first, then sort and filter in memory for comprehensive queries
     const snapshot = await baseQuery.get()
-    let allFinances = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      // Convert Firestore timestamps to ISO strings for JSON serialization
-      date: doc.data().date?.toDate?.()?.toISOString() || doc.data().date,
-      createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt,
-      updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || doc.data().updatedAt
-    }))
+    let allFinances = snapshot.docs.map(doc => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        userId: data.userId,
+        transaction_id: data.transaction_id,
+        type: data.type,
+        amount: data.amount,
+        currency: data.currency,
+        category: data.category,
+        subcategory: data.subcategory,
+        description: data.description,
+        merchant: data.merchant,
+        date: data.date?.toDate?.()?.toISOString() || data.date,
+        month: data.month,
+        year: data.year,
+        ai_generated: data.ai_generated,
+        confidence_score: data.confidence_score,
+        source_message: data.source_message,
+        ai_reasoning: data.ai_reasoning,
+        payment_method: data.payment_method,
+        tags: data.tags,
+        location: data.location,
+        notes: data.notes,
+        investment_type: data.investment_type,
+        units: data.units,
+        price_per_unit: data.price_per_unit,
+        recurring: data.recurring,
+        recurring_frequency: data.recurring_frequency,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
+        created_by: data.created_by
+      }
+    })
 
-    // Sort by date descending in memory
-    allFinances.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    // Apply amount filters in memory
+    if (minAmount) {
+      const min = parseFloat(minAmount)
+      if (!isNaN(min)) {
+        allFinances = allFinances.filter(f => f.amount && f.amount >= min)
+      }
+    }
+    if (maxAmount) {
+      const max = parseFloat(maxAmount)
+      if (!isNaN(max)) {
+        allFinances = allFinances.filter(f => f.amount && f.amount <= max)
+      }
+    }
 
-    // Apply pagination in memory
+    // Sort by specified field and order
+    allFinances.sort((a, b) => {
+      let aValue: any, bValue: any
+
+      switch (sortBy) {
+        case 'amount':
+          aValue = a.amount || 0
+          bValue = b.amount || 0
+          break
+        case 'createdAt':
+          try {
+            aValue = a.createdAt ? new Date(a.createdAt).getTime() : 0
+            bValue = b.createdAt ? new Date(b.createdAt).getTime() : 0
+          } catch (error) {
+            aValue = 0
+            bValue = 0
+          }
+          break
+        case 'date':
+        default:
+          try {
+            aValue = a.date ? new Date(a.date).getTime() : 0
+            bValue = b.date ? new Date(b.date).getTime() : 0
+          } catch (error) {
+            aValue = 0
+            bValue = 0
+          }
+          break
+      }
+
+      if (sortOrder === 'asc') {
+        return aValue - bValue
+      } else {
+        return bValue - aValue
+      }
+    })
+
+    // Apply pagination
     const startIndex = offset
     const endIndex = startIndex + limit
     const finances = allFinances.slice(startIndex, endIndex)
@@ -87,8 +183,34 @@ export async function POST(req: Request) {
 
   const body = await req.json()
 
+  // Validate required fields
+  if (!body.type || !body.amount || !body.category) {
+    return NextResponse.json({
+      error: "Missing required fields",
+      details: "type, amount, and category are required"
+    }, { status: 400 })
+  }
+
+  // Validate amount
+  const amount = Number(body.amount)
+  if (isNaN(amount) || amount <= 0) {
+    return NextResponse.json({
+      error: "Invalid amount",
+      details: "Amount must be a positive number"
+    }, { status: 400 })
+  }
+
+  // Validate type
+  const validTypes = ['income', 'expense', 'transfer', 'investment']
+  if (!validTypes.includes(body.type)) {
+    return NextResponse.json({
+      error: "Invalid type",
+      details: `Type must be one of: ${validTypes.join(', ')}`
+    }, { status: 400 })
+  }
+
   try {
-    // Enhanced finance entry with AI support
+    // Enhanced finance entry with comprehensive field support
     const newFinance = {
       userId,
       transaction_id: body.transaction_id || `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -96,7 +218,7 @@ export async function POST(req: Request) {
       amount: Number(body.amount),
       currency: body.currency || "INR",
       category: body.category,
-      subcategory: body.subcategory || null,
+      subcategory: body.subcategory || body.category, // Default to category if not provided
       description: body.description,
       merchant: body.merchant || null,
 
@@ -114,6 +236,15 @@ export async function POST(req: Request) {
       // Additional Metadata
       payment_method: body.payment_method || null,
       tags: Array.isArray(body.tags) ? body.tags : [],
+      location: body.location || null,
+      notes: body.notes || null,
+
+      // Investment fields
+      investment_type: body.investment_type || null,
+      units: body.units ? Number(body.units) : null,
+      price_per_unit: body.price_per_unit ? Number(body.price_per_unit) : null,
+
+      // Recurring fields
       recurring: body.recurring || false,
       recurring_frequency: body.recurring_frequency || null,
 

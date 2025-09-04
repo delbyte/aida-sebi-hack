@@ -33,9 +33,9 @@ export async function buildAIContext(
     const profile = await getUserProfile(userId)
     console.log('👤 User profile:', profile)
 
-    // Get recent finances (last 30 days)
-    const recentFinances = await getRecentFinances(userId, 30)
-    console.log('💰 Recent finances:', recentFinances.length, 'entries')
+    // Get ALL finances for comprehensive AI context
+    const recentFinances = await getAllFinances(userId)
+    console.log('💰 ALL finances loaded:', recentFinances.length, 'entries')
 
     // Get relevant memories
     const relevantMemories = await getRelevantMemoriesForContext(userId, conversationTopic)
@@ -110,18 +110,13 @@ async function getUserProfile(userId: string): Promise<any> {
 }
 
 /**
- * Get recent finances for context
+ * Get ALL finances for comprehensive AI context (not just recent)
  */
-async function getRecentFinances(userId: string, days: number = 30): Promise<any[]> {
+async function getAllFinances(userId: string): Promise<any[]> {
   try {
-    console.log(`🔍 Fetching recent finances for user ${userId}, last ${days} days`)
+    console.log(`🔍 Fetching ALL finances for user ${userId} for comprehensive AI context`)
 
-    const cutoffDate = new Date()
-    cutoffDate.setDate(cutoffDate.getDate() - days)
-
-    console.log(`📅 Cutoff date: ${cutoffDate.toISOString()}`)
-
-    // Simplified query without complex ordering to avoid index requirements
+    // Get ALL finance documents for the user (no date limit)
     const financesRef = adminDb.collection("finances")
       .where("userId", "==", userId)
 
@@ -133,24 +128,22 @@ async function getRecentFinances(userId: string, days: number = 30): Promise<any
       const data = doc.data()
       const docDate = data.date?.toDate ? data.date.toDate() : new Date(data.date)
 
-      // Filter by date in memory
-      if (docDate >= cutoffDate) {
-        finances.push({
-          id: doc.id,
-          ...data,
-          date: docDate.toISOString(),
-          createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
-        })
-      }
+      finances.push({
+        id: doc.id,
+        ...data,
+        date: docDate.toISOString(),
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
+      })
     })
 
-    // Sort by date descending in memory
+    // Sort by date descending (most recent first)
     finances.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
-    console.log(`✅ Returning ${finances.length} recent finances`)
-    return finances.slice(0, 20) // Limit to 20 most recent
+    console.log(`✅ Returning ${finances.length} total finances for AI context`)
+    return finances // Return ALL finances, not limited
   } catch (error) {
-    console.error('❌ Failed to get recent finances:', error)
+    console.error('❌ Failed to get all finances:', error)
     return []
   }
 }
@@ -216,9 +209,9 @@ function isMemoryRelevant(memory: Memory, topic: string): boolean {
 }
 
 /**
- * Generate financial summary for context
+ * Generate comprehensive financial summary from ALL data
  */
-async function generateFinancialSummary(userId: string, recentFinances: any[]): Promise<FinancialSummary> {
+async function generateFinancialSummary(userId: string, allFinances: any[]): Promise<FinancialSummary> {
   try {
     const summary: FinancialSummary = {
       totalIncome: 0,
@@ -229,12 +222,18 @@ async function generateFinancialSummary(userId: string, recentFinances: any[]): 
       aiGeneratedEntries: 0
     }
 
-    // Calculate totals from recent finances
-    for (const finance of recentFinances) {
+    // Calculate totals from ALL finances
+    for (const finance of allFinances) {
       if (finance.type === 'income') {
         summary.totalIncome += finance.amount
       } else if (finance.type === 'expense') {
         summary.totalExpenses += finance.amount
+      } else if (finance.type === 'transfer') {
+        // Handle transfers (could be positive or negative)
+        summary.netSavings += finance.amount
+      } else if (finance.type === 'investment') {
+        // Handle investments
+        summary.totalExpenses += finance.amount // Investments are outflows
       }
 
       if (finance.ai_generated) {
@@ -244,41 +243,50 @@ async function generateFinancialSummary(userId: string, recentFinances: any[]): 
 
     summary.netSavings = summary.totalIncome - summary.totalExpenses
 
-    // Calculate top categories
+    // Calculate top categories from ALL data
     const categoryTotals: { [key: string]: number } = {}
-    for (const finance of recentFinances) {
-      if (finance.type === 'expense') {
-        categoryTotals[finance.category] = (categoryTotals[finance.category] || 0) + finance.amount
+    for (const finance of allFinances) {
+      if (finance.type === 'expense' || finance.type === 'investment') {
+        const category = finance.category || 'Other'
+        categoryTotals[category] = (categoryTotals[category] || 0) + finance.amount
       }
     }
 
     summary.topCategories = Object.entries(categoryTotals)
       .sort(([, a], [, b]) => b - a)
-      .slice(0, 5)
+      .slice(0, 10) // Top 10 categories
       .map(([category, amount]) => ({ category, amount }))
 
-    // Generate monthly trend (simplified)
-    const currentMonth = new Date().toISOString().slice(0, 7) // YYYY-MM
-    const lastMonth = new Date()
-    lastMonth.setMonth(lastMonth.getMonth() - 1)
-    const lastMonthStr = lastMonth.toISOString().slice(0, 7)
+    // Generate monthly trend from ALL data
+    const monthlyData: { [key: string]: { income: number, expenses: number, count: number } } = {}
 
-    summary.monthlyTrend = [
-      {
-        month: lastMonthStr,
-        income: summary.totalIncome * 0.8, // Estimate
-        expenses: summary.totalExpenses * 0.8
-      },
-      {
-        month: currentMonth,
-        income: summary.totalIncome,
-        expenses: summary.totalExpenses
+    for (const finance of allFinances) {
+      const monthKey = finance.month || new Date(finance.date).toISOString().slice(0, 7)
+      if (!monthlyData[monthKey]) {
+        monthlyData[monthKey] = { income: 0, expenses: 0, count: 0 }
       }
-    ]
+
+      if (finance.type === 'income') {
+        monthlyData[monthKey].income += finance.amount
+      } else if (finance.type === 'expense' || finance.type === 'investment') {
+        monthlyData[monthKey].expenses += finance.amount
+      }
+      monthlyData[monthKey].count++
+    }
+
+    // Sort months and get last 12 months
+    summary.monthlyTrend = Object.entries(monthlyData)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-12)
+      .map(([month, data]) => ({
+        month,
+        income: data.income,
+        expenses: data.expenses
+      }))
 
     return summary
   } catch (error) {
-    console.error('Failed to generate financial summary:', error)
+    console.error('Failed to generate comprehensive financial summary:', error)
     return {
       totalIncome: 0,
       totalExpenses: 0,
@@ -317,20 +325,24 @@ export function formatContextForAI(context: AIContext): string {
     parts.push(`USER PROFILE: ${JSON.stringify(context.userProfile)}`)
   }
 
-  // Financial summary
-  parts.push(`FINANCIAL SUMMARY:
-- Total Income (30 days): ₹${context.financialSummary.totalIncome}
-- Total Expenses (30 days): ₹${context.financialSummary.totalExpenses}
-- Net Savings: ₹${context.financialSummary.netSavings}
+  // Financial summary from ALL data
+  parts.push(`COMPREHENSIVE FINANCIAL SUMMARY (ALL TIME):
+- Total Income (All Time): ₹${context.financialSummary.totalIncome}
+- Total Expenses (All Time): ₹${context.financialSummary.totalExpenses}
+- Net Position: ₹${context.financialSummary.netSavings}
 - AI Generated Entries: ${context.financialSummary.aiGeneratedEntries}
-- Top Expense Categories: ${context.financialSummary.topCategories.map(c => `${c.category} (₹${c.amount})`).join(', ')}`)
+- Top Expense Categories: ${context.financialSummary.topCategories.map(c => `${c.category} (₹${c.amount})`).join(', ')}
+- Monthly Trend (Last 12 months): ${context.financialSummary.monthlyTrend.map(m => `${m.month}: +₹${m.income} -₹${m.expenses}`).join(' | ')}`)
 
-  // Recent finances
+  // ALL finances (not just recent)
   if (context.recentFinances.length > 0) {
-    const recentEntries = context.recentFinances.slice(0, 5)
-      .map(f => `${f.type}: ₹${f.amount} (${f.category}) - ${f.description}`)
+    const totalEntries = context.recentFinances.length
+    const recentEntries = context.recentFinances.slice(0, 10) // Show more since we have all data
+      .map(f => `${f.type}: ₹${f.amount} (${f.category}) - ${f.description} [${new Date(f.date).toLocaleDateString()}]`)
       .join('\n')
-    parts.push(`RECENT TRANSACTIONS:\n${recentEntries}`)
+    parts.push(`ALL FINANCIAL TRANSACTIONS (${totalEntries} total entries):
+${recentEntries}
+${totalEntries > 10 ? `... and ${totalEntries - 10} more entries` : ''}`)
   }
 
   // Relevant memories

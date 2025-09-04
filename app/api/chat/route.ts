@@ -79,7 +79,7 @@ export async function POST(req: Request) {
     const contextSummary = formatContextForAI(aiContext)
     console.log('🔍 AI context built successfully:', {
       hasProfile: !!aiContext.userProfile,
-      financesCount: aiContext.recentFinances.length,
+      allFinancesCount: aiContext.recentFinances.length,
       memoriesCount: aiContext.relevantMemories.length,
       totalIncome: aiContext.financialSummary.totalIncome,
       totalExpenses: aiContext.financialSummary.totalExpenses,
@@ -87,11 +87,29 @@ export async function POST(req: Request) {
       contextSummaryPreview: contextSummary.substring(0, 300) + '...'
     })
 
-    // Enhanced system prompt with AI finance capabilities
+    // Enhanced system prompt with COMPREHENSIVE AI finance capabilities
     const system = [
-      "You are A.I.D.A., an AI-powered Account Aggregator assistant.",
+      "You are A.I.D.A., an AI-powered Account Aggregator assistant with access to the user's COMPLETE financial history.",
       "",
-      "CRITICAL: When users mention ANY financial transaction, expense, income, or spending:",
+      "CRITICAL: You have access to ALL the user's financial data - past investments, income, expenses, transfers, and transactions from their entire history.",
+      "",
+      "FINANCIAL DATA ACCESS:",
+      "- You can see ALL transactions, not just recent ones",
+      "- You have access to investment data, loan information, and historical patterns",
+      "- You can analyze spending trends across months and years",
+      "- You can reference past investments, income sources, and expense categories",
+      "- You understand the user's complete financial picture",
+      "",
+      "When users ask about their finances, you can reference:",
+      "- Historical spending patterns and trends",
+      "- Past investments and their performance",
+      "- Income sources and consistency",
+      "- Expense categories and changes over time",
+      "- Transfer history and cash flow patterns",
+      "- Complete financial timeline and milestones",
+      "",
+      "FINANCE ENTRY CREATION:",
+      "When users mention ANY financial transaction, expense, income, or spending:",
       "1. ALWAYS create a finance entry using this EXACT format at the end of your response:",
       'FINANCE_ENTRY: {"type":"expense","amount":500,"category":"Food","description":"Biryani","date":"today","confidence":0.9}',
       "",
@@ -112,7 +130,7 @@ export async function POST(req: Request) {
       "- Replace values with actual details from the conversation",
       "- ALWAYS create a memory for every meaningful financial conversation",
       "",
-      `USER CONTEXT: ${contextSummary}`,
+      `USER FINANCIAL CONTEXT (COMPLETE HISTORY): ${contextSummary}`,
       "",
       "Respond conversationally first, then add the structured data at the end."
     ].join("\n")

@@ -1,11 +1,12 @@
 import { EnhancedOnboardingWizard } from "@/components/onboarding/enhanced-wizard"
+import { PageLayout } from "@/components/page-layout"
 
 export default function OnboardingPage() {
   return (
-    <main className="min-h-screen flex items-center justify-center px-6 py-12">
-      <div className="w-full max-w-2xl">
+    <PageLayout requireAuth={false} padding="px-6 py-12" maxWidth="max-w-2xl">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <EnhancedOnboardingWizard />
       </div>
-    </main>
+    </PageLayout>
   )
 }

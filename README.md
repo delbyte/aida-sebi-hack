@@ -1,5 +1,7 @@
 # A.I.D.A. - AI-Driven Account Aggregator
 
+# Play with A.I.D.A yourself - https://aida-sebi-hack.vercel.app
+
 ## The Problem: The Advisory Gap
 
 There are over **18 crore demat accounts** in India, but only **1,300 registered advisors** to guide them. This isn't just a gap; it's a **crisis of guidance**.

@@ -37,14 +37,23 @@ async function verifyFirebaseToken() {
 }
 
 export async function POST(req: Request) {
+  const startTime = Date.now()
+
   try {
+    console.log('Chat API called at:', new Date().toISOString())
+
     const userId = await verifyFirebaseToken()
     if (!userId) {
+      console.log('Unauthorized request')
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    console.log('User verified:', userId)
+
     const body = await req.json().catch(() => ({}))
     const { messages = [], profile: clientProfile } = body
+
+    console.log('Request body parsed, messages count:', messages.length)
 
     // Get user profile from database
     const profileDoc = await adminDb.collection("profiles").doc(userId).get()
@@ -122,7 +131,12 @@ export async function POST(req: Request) {
 
     const prompt = messages.map((m: any) => `${m.role.toUpperCase()}: ${m.content}`).join("\n")
 
-    const result = await model.generateContent(`${system}\n\nConversation:\n${prompt}\n\nA.I.D.A.:`)
+    const result = await Promise.race([
+      model.generateContent(`${system}\n\nConversation:\n${prompt}\n\nA.I.D.A.:`),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Gemini API timeout')), 25000)
+      )
+    ]) as any
     let aiResponse = result.response.text()
 
     // Parse AI response for finance entries and memory updates
@@ -377,11 +391,14 @@ export async function POST(req: Request) {
     })
 
   } catch (error) {
+    console.error('Chat API error:', error)
+    
     // Return a proper error response
     return NextResponse.json(
       {
         error: "Failed to process chat request",
-        details: error instanceof Error ? error.message : "Unknown error"
+        details: error instanceof Error ? error.message : "Unknown error",
+        isTimeout: error instanceof Error && error.message === 'Gemini API timeout'
       },
       { status: 500 }
     )

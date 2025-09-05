@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import dynamic from "next/dynamic"
 import useSWR from "swr"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,11 +12,13 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts"
 import { auth } from "@/lib/firebase"
 import { useAuthState } from "react-firebase-hooks/auth"
-import { TrendingUp, TrendingDown, DollarSign, CreditCard, PiggyBank, AlertCircle, Plus, RefreshCw, TrendingUp as TrendingUpIcon, Edit, Trash2, Target, Percent, Briefcase } from "lucide-react"
+import { TrendingUp, TrendingDown, DollarSign, CreditCard, PiggyBank, AlertCircle, Plus, RefreshCw, TrendingUp as TrendingUpIcon, Edit, Trash2, Target, Percent, Briefcase, BarChart3 } from "lucide-react"
 import { PageLayout } from "@/components/page-layout"
+
+// Dynamically import charts to reduce initial bundle size
+const Charts = dynamic(() => import("./charts"), { ssr: false })
 
 const fetcher = async (url: string) => {
   // Wait for auth to be ready
@@ -713,7 +716,7 @@ export default function Dashboard() {
                   </p>
                 )}
               </div>
-              <BarChart className={`w-8 h-8 ${investmentSummary.totalReturn >= 0 ? 'text-green-500' : 'text-red-500'}`} />
+              <BarChart3 className={`w-8 h-8 ${investmentSummary.totalReturn >= 0 ? 'text-green-500' : 'text-red-500'}`} />
             </div>
           </CardContent>
         </Card>
@@ -737,163 +740,14 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Investment Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Investment Performance Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <LineChart className="w-5 h-5" />
-              Investment Performance Over Time
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-80 w-full" />
-            ) : investmentChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={investmentChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => [`₹${value}`, '']} />
-                  <Line type="monotone" dataKey="invested" stroke="#3b82f6" name="Invested" strokeWidth={2} />
-                  <Line type="monotone" dataKey="current" stroke="#10b981" name="Current Value" strokeWidth={2} />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-80 flex items-center justify-center text-muted-foreground">
-                <div className="text-center">
-                  <LineChart className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No investment data available</p>
-                  <p className="text-sm">Add some investments to see your performance chart</p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Investment Types Distribution */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <PieChart className="w-5 h-5" />
-              Investment Portfolio by Type
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-80 w-full" />
-            ) : investmentData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={investmentData}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    innerRadius={50}
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {investmentData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => [`₹${value}`, 'Value']} />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-80 flex items-center justify-center text-muted-foreground">
-                <div className="text-center">
-                  <PieChart className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No investment data available</p>
-                  <p className="text-sm">Add some investments to see the portfolio breakdown</p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Income vs Expenses Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart className="w-5 h-5" />
-              Income vs Expenses (Last 14 Days)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-80 w-full" />
-            ) : chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => [`₹${value}`, '']} />
-                  <Bar dataKey="income" fill="#10b981" name="Income" />
-                  <Bar dataKey="expenses" fill="#ef4444" name="Expenses" />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-80 flex items-center justify-center text-muted-foreground">
-                <div className="text-center">
-                  <BarChart className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No transaction data available</p>
-                  <p className="text-sm">Add some transactions to see your chart</p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Expense Categories */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <PieChart className="w-5 h-5" />
-              Expense Categories
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-80 w-full" />
-            ) : categoryData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={categoryData}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    innerRadius={50}
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {categoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => [`₹${value}`, 'Amount']} />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-80 flex items-center justify-center text-muted-foreground">
-                <div className="text-center">
-                  <PieChart className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No expense data available</p>
-                  <p className="text-sm">Add some expenses to see the breakdown</p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      {/* Charts */}
+      <Charts
+        isLoading={isLoading}
+        chartData={chartData}
+        categoryData={categoryData}
+        investmentChartData={investmentChartData}
+        investmentData={investmentData}
+      />
 
       {/* Add Transaction Form */}
       <Card className="mb-8">

@@ -117,41 +117,96 @@ export default function ChatUI() {
         },
         body: JSON.stringify({ messages: next, profile: profData?.profile }),
       })
-      const data: ChatResponse = await res.json()
 
-      if (data?.reply) {
-        setMessages((m) => [...m, { role: "assistant", content: data.reply }])
+      if (res.ok) {
+        const data: ChatResponse = await res.json()
 
-        // Handle finance entries
-        if (data.financeEntries && data.financeEntries.length > 0) {
-          data.financeEntries.forEach(entry => {
-            const notification = {
-              id: `finance-${entry.id}`,
-              type: 'finance' as const,
-              message: `Added ${entry.type}: ₹${entry.amount} (${entry.category})`,
-              timestamp: new Date()
-            }
-            setNotifications(prev => [notification, ...prev])
-          })
+        if (data?.reply) {
+          setMessages((m) => [...m, { role: "assistant", content: data.reply }])
+
+          // Handle finance entries
+          if (data.financeEntries && data.financeEntries.length > 0) {
+            data.financeEntries.forEach(entry => {
+              const notification = {
+                id: `finance-${entry.id}`,
+                type: 'finance' as const,
+                message: `Added ${entry.type}: ₹${entry.amount} (${entry.category})`,
+                timestamp: new Date()
+              }
+              setNotifications(prev => [notification, ...prev])
+            })
+          }
+
+          // Handle memory updates
+          if (data.memoryUpdates && data.memoryUpdates.length > 0) {
+            data.memoryUpdates.forEach(update => {
+              const notification = {
+                id: `memory-${update.id}`,
+                type: 'memory' as const,
+                message: update.created
+                  ? `Learned: ${update.content.substring(0, 50)}...`
+                  : `Updated memory: ${update.category}`,
+                timestamp: new Date()
+              }
+              setNotifications(prev => [notification, ...prev])
+            })
+          }
         }
+      } else if (res.status === 500) {
+        // Show educational error message on 500
+        setMessages((m) => [...m, { 
+          role: "assistant", 
+          content: `Sorry, our servers are experiencing high traffic right now. While you wait, here are some great resources to learn more about investing:
 
-        // Handle memory updates
-        if (data.memoryUpdates && data.memoryUpdates.length > 0) {
-          data.memoryUpdates.forEach(update => {
-            const notification = {
-              id: `memory-${update.id}`,
-              type: 'memory' as const,
-              message: update.created
-                ? `Learned: ${update.content.substring(0, 50)}...`
-                : `Updated memory: ${update.category}`,
-              timestamp: new Date()
-            }
-            setNotifications(prev => [notification, ...prev])
-          })
-        }
+## Educational Resources for Retail Investors
+
+### **Indian Financial Education**
+- **[Zerodha Varsity](https://zerodha.com/varsity/)** - Free courses on stock market basics, technical analysis, and more
+- **[NSE IFSC Learning](https://www.nseifsc.com/learning)** - Comprehensive modules on financial markets
+- **[Moneycontrol Message Board](https://mmb.moneycontrol.com/)** - Community discussions and insights
+
+### **Global Learning Platforms**
+- **[Khan Academy - Investing](https://www.khanacademy.org/economics-finance-domain/core-finance/pf-investing-101)** - Free investing fundamentals
+- **[Investopedia](https://www.investopedia.com/)** - Dictionary and tutorials for financial terms
+- **[Coursera - Finance Courses](https://www.coursera.org/browse/business/finance)** - Professional courses from top universities
+
+### **Key Topics to Explore**
+- **Portfolio Diversification** - Don't put all eggs in one basket
+- **Risk Management** - Understanding volatility and market cycles  
+- **Fundamental Analysis** - Evaluating company financials
+- **Technical Analysis** - Reading charts and trends
+
+Please try sending your message again in a few moments! 🚀` 
+        }])
+      } else {
+        // Handle other errors silently
       }
     } catch (error) {
-      // Handle error silently
+      // Handle network errors - show educational message
+      setMessages((m) => [...m, { 
+        role: "assistant", 
+        content: `Sorry, our servers are experiencing high traffic right now. While you wait, here are some great resources to learn more about investing:
+
+## Educational Resources for Retail Investors
+
+### **Indian Financial Education**
+- **[Zerodha Varsity](https://zerodha.com/varsity/)** - Free courses on stock market basics, technical analysis, and more
+- **[NSE IFSC Learning](https://www.nseifsc.com/learning)** - Comprehensive modules on financial markets
+- **[Moneycontrol Message Board](https://mmb.moneycontrol.com/)** - Community discussions and insights
+
+### **Global Learning Platforms**
+- **[Khan Academy - Investing](https://www.khanacademy.org/economics-finance-domain/core-finance/pf-investing-101)** - Free investing fundamentals
+- **[Investopedia](https://www.investopedia.com/)** - Dictionary and tutorials for financial terms
+- **[Coursera - Finance Courses](https://www.coursera.org/browse/business/finance)** - Professional courses from top universities
+
+### **Key Topics to Explore**
+- **Portfolio Diversification** - Don't put all your eggs in one basket!
+- **Risk Management** - Understanding volatility and market cycles\.  
+- **Fundamental Analysis** - Evaluating company financials\.
+- **Technical Analysis** - Reading charts and trends\\.
+
+Please try sending your message again in a few moments!` 
+      }])
     } finally {
       setLoading(false)
     }

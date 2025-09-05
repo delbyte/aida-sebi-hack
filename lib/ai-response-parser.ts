@@ -72,17 +72,13 @@ export function parseAIResponse(response: string): ParsedAIResponse {
 function parseFinanceEntries(response: string): FinanceEntry[] {
   const entries: FinanceEntry[] = []
 
-  console.log('🔍 Parsing finance entries from response...')
-
   // Look for FINANCE_ENTRY format
   const singleEntryPattern = /FINANCE_ENTRY:?\s*(\{[\s\S]*?\})/g
   let match
 
   while ((match = singleEntryPattern.exec(response)) !== null) {
-    console.log('📊 Found FINANCE_ENTRY match:', match[1])
     try {
       const entryData = JSON.parse(match[1])
-      console.log('✅ Parsed finance entry data:', entryData)
       const entry: FinanceEntry = {
         type: entryData.type,
         amount: Number(entryData.amount),
@@ -95,9 +91,8 @@ function parseFinanceEntries(response: string): FinanceEntry[] {
         merchant: entryData.merchant
       }
       entries.push(entry)
-      console.log('✅ Created finance entry:', entry)
     } catch (error) {
-      console.error('❌ Failed to parse finance entry:', error, 'Raw data:', match[1])
+      // Failed to parse finance entry
     }
   }
 
@@ -121,11 +116,10 @@ function parseFinanceEntries(response: string): FinanceEntry[] {
         entries.push(entry)
       }
     } catch (error) {
-      console.error('Failed to parse multiple finance entries:', error)
+      // Failed to parse multiple finance entries
     }
   }
 
-  console.log(`📊 Total finance entries parsed: ${entries.length}`)
   return entries
 }
 
@@ -134,8 +128,6 @@ function parseFinanceEntries(response: string): FinanceEntry[] {
  */
 function parseMemoryUpdates(response: string): MemoryUpdate[] {
   const updates: MemoryUpdate[] = []
-
-  console.log('🧠 Parsing memory updates from response...')
 
   // Look for UPDATE_MEMORY format (more flexible patterns)
   const updatePatterns = [
@@ -148,10 +140,8 @@ function parseMemoryUpdates(response: string): MemoryUpdate[] {
   for (const pattern of updatePatterns) {
     let match
     while ((match = pattern.exec(response)) !== null) {
-      console.log('🧠 Found memory update match:', match[1])
       try {
         const updateData = JSON.parse(match[1])
-        console.log('✅ Parsed memory update data:', updateData)
         const update: MemoryUpdate = {
           content: updateData.content,
           category: updateData.category || 'general',
@@ -160,14 +150,12 @@ function parseMemoryUpdates(response: string): MemoryUpdate[] {
           isNew: updateData.isNew !== false
         }
         updates.push(update)
-        console.log('✅ Created memory update:', update)
       } catch (error) {
-        console.error('❌ Failed to parse memory update:', error, 'Raw data:', match[1])
+        // Failed to parse memory update
       }
     }
   }
 
-  console.log(`🧠 Total memory updates parsed: ${updates.length}`)
   return updates
 }
 
@@ -176,8 +164,6 @@ function parseMemoryUpdates(response: string): MemoryUpdate[] {
  */
 function parseInvestmentUpdates(response: string): InvestmentUpdate[] {
   const updates: InvestmentUpdate[] = []
-
-  console.log('📈 Parsing investment updates from response...')
 
   // Look for INVESTMENT_UPDATE format
   const updatePatterns = [
@@ -189,10 +175,8 @@ function parseInvestmentUpdates(response: string): InvestmentUpdate[] {
   for (const pattern of updatePatterns) {
     let match
     while ((match = pattern.exec(response)) !== null) {
-      console.log('📈 Found investment update match:', match[1])
       try {
         const updateData = JSON.parse(match[1])
-        console.log('✅ Parsed investment update data:', updateData)
         const update: InvestmentUpdate = {
           investmentId: updateData.investmentId,
           investmentName: updateData.investmentName,
@@ -201,14 +185,12 @@ function parseInvestmentUpdates(response: string): InvestmentUpdate[] {
           reason: updateData.reason
         }
         updates.push(update)
-        console.log('✅ Created investment update:', update)
       } catch (error) {
-        console.error('❌ Failed to parse investment update:', error, 'Raw data:', match[1])
+        // Failed to parse investment update
       }
     }
   }
 
-  console.log(`📈 Total investment updates parsed: ${updates.length}`)
   return updates
 }
 

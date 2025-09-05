@@ -67,7 +67,6 @@ export default function ProfileForm() {
     try {
       const user = auth.currentUser
       if (!user) {
-        console.error("No authenticated user")
         return
       }
 

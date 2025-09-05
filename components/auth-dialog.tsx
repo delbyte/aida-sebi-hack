@@ -25,15 +25,12 @@ export function AuthDialog({
 
   const handleGoogleSignIn = async () => {
     try {
-      console.log('🔑 Starting Google sign-in...')
       const result = await signInWithPopup(auth, googleProvider)
-      console.log('✅ Google sign-in successful:', result.user.uid, result.user.email)
       
       // Get the user's ID token for API calls
       const idToken = await result.user.getIdToken()
       
       // Check if user has completed onboarding
-      console.log('🔍 Checking onboarding status...')
       const profileResponse = await fetch("/api/profile", {
         headers: {
           "Authorization": `Bearer ${idToken}`,
@@ -44,9 +41,6 @@ export function AuthDialog({
       if (profileResponse.ok) {
         const profileData = await profileResponse.json()
         onboardingComplete = profileData.profile?.onboarding_complete === true
-        console.log('📋 Onboarding status:', onboardingComplete)
-      } else {
-        console.log('⚠️ Could not fetch profile, assuming first-time user')
       }
       
       // Wait a moment for auth state to propagate
@@ -54,21 +48,14 @@ export function AuthDialog({
       
       // Redirect based on onboarding status
       if (onboardingComplete) {
-        console.log('🏠 User has completed onboarding, redirecting to dashboard')
         router.push("/dashboard")
       } else {
-        console.log('📝 First-time user or incomplete onboarding, redirecting to onboarding')
         router.push("/onboarding")
       }
       
       setOpen(false)
     } catch (error: any) {
-      console.error("❌ Auth error:", error)
-      console.error("Error details:", {
-        code: error?.code || 'Unknown code',
-        message: error?.message || 'Unknown message',
-        details: error
-      })
+      // Auth error
     }
   }
 

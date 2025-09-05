@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { AuthDialog } from "@/components/auth-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Sparkles, TrendingUp, Shield, MessageCircle, ArrowRight, Star } from "lucide-react"
+import { Sparkles, TrendingUp, Shield, MessageCircle, ArrowRight, Star, Github } from "lucide-react"
 
 export default function LandingPage() {
   const [user, loading] = useAuthState(auth)
@@ -96,9 +96,7 @@ export default function LandingPage() {
         {/* Hero Badge */}
         <div className="animate-fade-in-up">
           <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 px-4 py-2 text-sm font-medium border border-blue-200/50 shadow-sm">
-            <Sparkles className="w-4 h-4 animate-pulse" />
             Trusted, secure, and personal
-            <Star className="w-4 h-4 animate-pulse" />
           </span>
         </div>
 
@@ -119,13 +117,28 @@ export default function LandingPage() {
           </p>
         </div>
 
-        {/* CTA Button */}
+        {/* CTA Buttons */}
         <div className="animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
-          <AuthDialog
-            buttonText="Get started"
-            buttonClassName="group relative bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-4 rounded-full text-lg font-semibold shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
-            size="lg"
-          />
+          <div className="flex gap-4 justify-center">
+            <AuthDialog
+              buttonText="Get started"
+              buttonClassName="group relative bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-4 rounded-full text-lg font-semibold shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
+              size="lg"
+            />
+            <Button
+              asChild
+              className="group relative bg-gray-800 hover:bg-gray-900 text-white px-8 py-4 rounded-full text-lg font-semibold shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 flex items-center gap-2"
+            >
+              <a
+                href="https://github.com/delbyte/aida-sebi-hack"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Github className="w-5 h-5" />
+                View on GitHub
+              </a>
+            </Button>
+          </div>
           <div className="flex items-center justify-center gap-2 mt-4 text-sm text-gray-500">
             <span>Free to start</span>
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

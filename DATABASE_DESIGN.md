@@ -576,7 +576,7 @@ export function parseAIResponse(response: string) {
     try {
       result.financeEntries = [JSON.parse(financeMatch[1])]
     } catch (e) {
-      console.error('Failed to parse finance entry:', e)
+      // Failed to parse finance entry
     }
   }
 
@@ -586,7 +586,7 @@ export function parseAIResponse(response: string) {
     try {
       result.memoryUpdates = [JSON.parse(memoryMatch[1])]
     } catch (e) {
-      console.error('Failed to parse memory update:', e)
+      // Failed to parse memory update
     }
   }
 

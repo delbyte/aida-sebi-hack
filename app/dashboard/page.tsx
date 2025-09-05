@@ -389,7 +389,7 @@ export default function Dashboard() {
         payment_method: "",
       })
     } catch (error) {
-      console.error("Error adding transaction:", error)
+      // Error adding transaction
     } finally {
       setIsSubmitting(false)
     }
@@ -443,7 +443,7 @@ export default function Dashboard() {
         broker: "",
       })
     } catch (error) {
-      console.error("Error adding investment:", error)
+      // Error adding investment
     } finally {
       setIsSubmittingInvestment(false)
     }
@@ -468,7 +468,7 @@ export default function Dashboard() {
         await mutate() // Refresh data
       }
     } catch (error) {
-      console.error("Error deleting investment:", error)
+      // Error deleting investment
     }
   }
 

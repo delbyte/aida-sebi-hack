@@ -80,11 +80,9 @@ export async function createMemory(
     const memoryRef = adminDb.collection("memories").doc(memoryId)
     await memoryRef.set(memory)
 
-    console.log(`✅ Created new memory for user ${userId}: ${memoryId}`)
     return memoryId
 
   } catch (error) {
-    console.error(`❌ Failed to create memory for user ${userId}:`, error)
     throw error
   }
 }
@@ -102,7 +100,6 @@ export async function updateMemory(
     const memorySnap = await memoryRef.get()
 
     if (!memorySnap.exists) {
-      console.log(`⚠️ Memory not found: ${memoryId}`)
       return false
     }
 
@@ -118,12 +115,10 @@ export async function updateMemory(
     }
 
     await memoryRef.update(updatedMemory)
-    console.log(`✅ Updated memory ${memoryId} for user ${userId}`)
 
     return true
 
   } catch (error) {
-    console.error(`❌ Failed to update memory ${memoryId}:`, error)
     return false
   }
 }
@@ -149,7 +144,6 @@ export async function getUserMemories(userId: string): Promise<Memory[]> {
     })
 
   } catch (error) {
-    console.error(`❌ Failed to get memories for user ${userId}:`, error)
     return []
   }
 }
@@ -179,7 +173,6 @@ export async function getRelevantMemories(
       .map(item => item.memory)
 
   } catch (error) {
-    console.error(`❌ Failed to get relevant memories for user ${userId}:`, error)
     return []
   }
 }
@@ -212,7 +205,6 @@ export async function buildMemoryContext(
     }
 
   } catch (error) {
-    console.error(`❌ Failed to build memory context for user ${userId}:`, error)
     return {
       userId,
       relevantMemories: [],
@@ -231,8 +223,6 @@ export async function consolidateMemories(
   consolidatedContent: string
 ): Promise<boolean> {
   try {
-    console.log(`🔄 Consolidating ${memoryIds.length} memories for user ${userId}`)
-
     // Create new consolidated memory
     const consolidatedId = await createMemory(userId, consolidatedContent, {
       category: 'consolidated',
@@ -249,11 +239,9 @@ export async function consolidateMemories(
       })
     }
 
-    console.log(`✅ Successfully consolidated memories for user ${userId}`)
     return true
 
   } catch (error) {
-    console.error(`❌ Failed to consolidate memories for user ${userId}:`, error)
     return false
   }
 }
@@ -285,11 +273,9 @@ export async function cleanupMemories(userId: string): Promise<number> {
       }
     }
 
-    console.log(`🧹 Cleaned up ${cleanedCount} memories for user ${userId}`)
     return cleanedCount
 
   } catch (error) {
-    console.error(`❌ Failed to cleanup memories for user ${userId}:`, error)
     return 0
   }
 }

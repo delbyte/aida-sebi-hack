@@ -7,9 +7,7 @@ let db: Firestore
 
 try {
   db = getFirestore(app)
-  console.log('✅ Firestore initialized successfully')
 } catch (error) {
-  console.error('❌ Firestore initialization failed:', error)
   throw error
 }
 

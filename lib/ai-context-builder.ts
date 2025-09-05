@@ -27,27 +27,20 @@ export async function buildAIContext(
   recentMessages: Array<{ role: string, content: string }> = []
 ): Promise<AIContext> {
   try {
-    console.log('🔍 Building comprehensive AI context for user:', userId)
-
     // Get user profile
     const profile = await getUserProfile(userId)
-    console.log('👤 User profile:', profile)
 
     // Get ALL finances for comprehensive AI context
     const recentFinances = await getAllFinances(userId)
-    console.log('💰 ALL finances loaded:', recentFinances.length, 'entries')
 
     // Get relevant memories
     const relevantMemories = await getRelevantMemoriesForContext(userId, conversationTopic)
-    console.log('🧠 Relevant memories:', relevantMemories.length, 'entries')
 
     // Generate financial summary
     const financialSummary = await generateFinancialSummary(userId, recentFinances)
-    console.log('📊 Financial summary:', financialSummary)
 
     // Build conversation history summary
     const conversationHistory = summarizeConversationHistory(recentMessages)
-    console.log('💬 Conversation history:', conversationHistory.substring(0, 100) + '...')
 
     const context: AIContext = {
       userProfile: profile,
@@ -57,17 +50,9 @@ export async function buildAIContext(
       conversationHistory
     }
 
-    console.log('✅ AI context built successfully:', {
-      hasProfile: !!profile,
-      financesCount: recentFinances.length,
-      memoriesCount: relevantMemories.length,
-      conversationLength: conversationHistory.length
-    })
-
     return context
 
   } catch (error) {
-    console.error('❌ Failed to build AI context:', error)
     return {
       userProfile: null,
       recentFinances: [],
@@ -104,7 +89,6 @@ async function getUserProfile(userId: string): Promise<any> {
 
     return profileDoc.data()
   } catch (error) {
-    console.error('Failed to get user profile:', error)
     return null
   }
 }
@@ -114,14 +98,11 @@ async function getUserProfile(userId: string): Promise<any> {
  */
 async function getAllFinances(userId: string): Promise<any[]> {
   try {
-    console.log(`🔍 Fetching ALL finances for user ${userId} for comprehensive AI context`)
-
     // Get ALL finance documents for the user (no date limit)
     const financesRef = adminDb.collection("finances")
       .where("userId", "==", userId)
 
     const querySnapshot = await financesRef.get()
-    console.log(`📊 Found ${querySnapshot.size} total finance documents for user`)
 
     const finances: any[] = []
     querySnapshot.forEach((doc) => {
@@ -140,10 +121,8 @@ async function getAllFinances(userId: string): Promise<any[]> {
     // Sort by date descending (most recent first)
     finances.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
-    console.log(`✅ Returning ${finances.length} total finances for AI context`)
     return finances // Return ALL finances, not limited
   } catch (error) {
-    console.error('❌ Failed to get all finances:', error)
     return []
   }
 }
@@ -153,14 +132,11 @@ async function getAllFinances(userId: string): Promise<any[]> {
  */
 async function getRelevantMemoriesForContext(userId: string, conversationTopic: string): Promise<Memory[]> {
   try {
-    console.log(`🔍 Fetching relevant memories for user ${userId}, topic: "${conversationTopic}"`)
-
     // Simplified query to avoid index requirements
     const memoriesRef = adminDb.collection("memories")
       .where("userId", "==", userId)
 
     const querySnapshot = await memoriesRef.get()
-    console.log(`🧠 Found ${querySnapshot.size} total memory documents for user`)
 
     const memories: Memory[] = []
 
@@ -172,10 +148,8 @@ async function getRelevantMemoriesForContext(userId: string, conversationTopic: 
       }
     })
 
-    console.log(`✅ Found ${memories.length} relevant memories`)
     return memories.slice(0, 5) // Return top 5 most relevant
   } catch (error) {
-    console.error('❌ Failed to get relevant memories:', error)
     return []
   }
 }
@@ -286,7 +260,6 @@ async function generateFinancialSummary(userId: string, allFinances: any[]): Pro
 
     return summary
   } catch (error) {
-    console.error('Failed to generate comprehensive financial summary:', error)
     return {
       totalIncome: 0,
       totalExpenses: 0,

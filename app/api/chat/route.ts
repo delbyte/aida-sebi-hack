@@ -310,8 +310,6 @@ export async function POST(req: Request) {
                   updated_at: new Date()
                 })
 
-                console.log(`Updated investment ${matchingInvestment.description} from ${(matchingInvestment.current_value || matchingInvestment.amount)} to ${newValue}`)
-
                 // Add update confirmation to AI response
                 aiResponse += `\n\n✅ Updated your investment "${matchingInvestment.description}" value to ₹${newValue.toLocaleString()}.`
               }
@@ -343,7 +341,7 @@ export async function POST(req: Request) {
               }
             }
           } catch (error) {
-            console.error('Error updating investment:', error)
+            // Error updating investment
           }
         }
       }

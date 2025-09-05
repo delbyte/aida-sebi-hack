@@ -70,19 +70,15 @@ export interface NewProfile {
  */
 export async function migrateUserProfile(userId: string): Promise<boolean> {
   try {
-    console.log(`🔄 Migrating profile for user: ${userId}`)
-
     // Get existing profile
     const profileRef = adminDb.collection("profiles").doc(userId)
     const profileSnap = await profileRef.get()
 
     if (!profileSnap.exists) {
-      console.log(`⚠️ No profile found for user: ${userId}`)
       return false
     }
 
     const oldProfile = profileSnap.data() as OldProfile
-    console.log('📄 Old profile data:', oldProfile)
 
     // Transform to new schema
     const newProfile: NewProfile = {
@@ -123,11 +119,9 @@ export async function migrateUserProfile(userId: string): Promise<boolean> {
 
     // Save migrated profile
     await profileRef.set(newProfile, { merge: true })
-    console.log(`✅ Successfully migrated profile for user: ${userId}`)
 
     return true
   } catch (error) {
-    console.error(`❌ Failed to migrate profile for user: ${userId}`, error)
     return false
   }
 }
@@ -144,19 +138,14 @@ export async function migrateAllProfiles(): Promise<MigrationResult> {
   }
 
   try {
-    console.log('🚀 Starting profile migration for all users...')
-
     // Get all profile documents
     const profilesRef = adminDb.collection("profiles")
     const snapshot = await profilesRef.get()
 
     if (snapshot.empty) {
-      console.log('⚠️ No profiles found to migrate')
       result.success = true
       return result
     }
-
-    console.log(`📊 Found ${snapshot.size} profiles to migrate`)
 
     // Migrate each profile
     for (const doc of snapshot.docs) {
@@ -174,14 +163,10 @@ export async function migrateAllProfiles(): Promise<MigrationResult> {
     }
 
     result.success = result.errors.length === 0
-    console.log(`✅ Migration completed. Success: ${result.success}`)
-    console.log(`📈 Migrated users: ${result.migratedUsers.length}`)
-    console.log(`❌ Errors: ${result.errors.length}`)
 
     return result
 
   } catch (error) {
-    console.error('❌ Migration failed:', error)
     result.errors.push(`Migration failed: ${error}`)
     return result
   }
@@ -196,7 +181,6 @@ export async function validateMigration(userId: string): Promise<boolean> {
     const profileSnap = await profileRef.get()
 
     if (!profileSnap.exists) {
-      console.log(`❌ Profile not found for user: ${userId}`)
       return false
     }
 
@@ -206,22 +190,18 @@ export async function validateMigration(userId: string): Promise<boolean> {
     const requiredFields = ['full_name', 'currency', 'onboarding_complete']
     for (const field of requiredFields) {
       if (!(field in profile)) {
-        console.log(`❌ Missing required field: ${field}`)
         return false
       }
     }
 
     // Check new schema fields
     if (!profile.monthly_budgets) {
-      console.log('❌ Missing monthly_budgets field')
       return false
     }
 
-    console.log(`✅ Profile validation passed for user: ${userId}`)
     return true
 
   } catch (error) {
-    console.error(`❌ Profile validation failed for user: ${userId}`, error)
     return false
   }
 }
@@ -231,13 +211,10 @@ export async function validateMigration(userId: string): Promise<boolean> {
  */
 export async function rollbackUserMigration(userId: string): Promise<boolean> {
   try {
-    console.log(`🔄 Rolling back migration for user: ${userId}`)
-
     const profileRef = adminDb.collection("profiles").doc(userId)
     const profileSnap = await profileRef.get()
 
     if (!profileSnap.exists) {
-      console.log(`⚠️ No profile found for user: ${userId}`)
       return false
     }
 
@@ -255,11 +232,9 @@ export async function rollbackUserMigration(userId: string): Promise<boolean> {
     }
 
     await profileRef.set(oldProfile, { merge: true })
-    console.log(`✅ Successfully rolled back migration for user: ${userId}`)
 
     return true
   } catch (error) {
-    console.error(`❌ Failed to rollback migration for user: ${userId}`, error)
     return false
   }
 }

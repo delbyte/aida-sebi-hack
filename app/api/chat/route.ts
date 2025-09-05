@@ -10,7 +10,7 @@ import { buildAIContext, formatContextForAI } from "@/lib/ai-context-builder"
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 const model = genAI.getGenerativeModel({
-  model: "gemini-1.5-flash",
+  model: "gemini-2.0-flash-lite",
   generationConfig: {
     temperature: 0.1, // Lower temperature for more consistent structured output
     topP: 0.8,
@@ -90,8 +90,12 @@ export async function POST(req: Request) {
       "",
       "FINANCE ENTRY CREATION:",
       "When users mention ANY financial transaction, expense, income, or spending:",
-      "1. ALWAYS create a finance entry using this EXACT format at the end of your response:",
-      'FINANCE_ENTRY: {"type":"expense","amount":500,"category":"Food","description":"Biryani","date":"today","confidence":0.9}',
+      "1. ONLY create a finance entry if you have CLEAR, SPECIFIC information",
+      "2. Use this EXACT format at the end of your response:",
+      'FINANCE_ENTRY: {"type":"expense","amount":500,"category":"Food","description":"Biryani"}',
+      "3. IMPORTANT: Only include fields that are EXPLICITLY mentioned or clearly implied",
+      "4. Do NOT guess payment methods, merchants, or other details",
+      "5. Leave fields blank rather than guessing",
       "",
       "2. ALWAYS create a memory for EVERY meaningful conversation using this EXACT format:",
       'UPDATE_MEMORY: {"content":"User mentioned their dad needs to pay them ₹100,000","category":"financial_expectations","importance":7}',
@@ -108,7 +112,8 @@ export async function POST(req: Request) {
       "- Put FINANCE_ENTRY and UPDATE_MEMORY at the VERY END of your response",
       "- Use the exact JSON format shown above",
       "- Replace values with actual details from the conversation",
-      "- ALWAYS create a memory for every meaningful financial conversation",
+      "- ONLY include fields that are clearly mentioned - do not guess or assume",
+      "- Leave optional fields out of the JSON rather than guessing",
       "",
       `USER FINANCIAL CONTEXT (COMPLETE HISTORY): ${contextSummary}`,
       "",
@@ -166,12 +171,12 @@ export async function POST(req: Request) {
               category: entry.category,
               subcategory: entry.category, // Use category as subcategory for now
               description: entry.description,
-              merchant: entry.merchant || '',
+              merchant: entry.merchant || null,
               
               // Date & Time - Updated schema format
-              date: entry.date === 'today' ? new Date() : new Date(entry.date),
-              month: new Date(entry.date === 'today' ? new Date() : new Date(entry.date)).toISOString().substring(0, 7), // YYYY-MM
-              year: new Date(entry.date === 'today' ? new Date() : new Date(entry.date)).getFullYear().toString(),
+              date: entry.date ? (entry.date === 'today' ? new Date() : new Date(entry.date)) : new Date(),
+              month: entry.date ? new Date(entry.date === 'today' ? new Date() : new Date(entry.date)).toISOString().substring(0, 7) : new Date().toISOString().substring(0, 7), // YYYY-MM
+              year: entry.date ? new Date(entry.date === 'today' ? new Date() : new Date(entry.date)).getFullYear().toString() : new Date().getFullYear().toString(),
               
               // AI Context - Updated schema
               ai_generated: true,
@@ -179,18 +184,19 @@ export async function POST(req: Request) {
               source_message: messages[messages.length - 1]?.content || '',
               ai_reasoning: `Auto-detected from conversation: "${messages[messages.length - 1]?.content}"`,
               
-              // Additional Metadata - Updated schema
-              payment_method: entry.payment_method || 'unknown',
+              // Additional Metadata - Only set if explicitly provided, otherwise null
+              payment_method: entry.payment_method || null,
               tags: [],
-              location: '',
-              notes: '',
+              location: null,
+              notes: null,
               
-              // Investment fields (not applicable for income/expense)
-              investment_type: null,
-              units: null,
-              price_per_unit: null,
+              // Investment fields - Only set for investment type
+              investment_type: entry.type === 'investment' ? entry.category : null,
+              units: null, // Will be set only if explicitly provided
+              price_per_unit: null, // Will be set only if explicitly provided
+              current_value: entry.type === 'investment' ? entry.amount : null, // For investments, default current_value to amount
               
-              // Recurring fields
+              // Recurring fields - Only set if explicitly provided
               recurring: false,
               recurring_frequency: null,
               

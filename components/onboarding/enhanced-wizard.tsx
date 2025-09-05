@@ -343,6 +343,7 @@ export function EnhancedOnboardingWizard() {
     try {
       const idToken = await user.getIdToken()
 
+      // First, save profile data
       const res = await fetch("/api/profile", {
         method: "POST",
         headers: {
@@ -358,6 +359,100 @@ export function EnhancedOnboardingWizard() {
 
       if (res.ok) {
         const responseData = await res.json()
+
+        // Now save investment data to finances API
+        const investmentPromises: Promise<Response>[] = []
+
+        // Process mutual funds
+        if (data.investments.mutual_funds.length > 0) {
+          data.investments.mutual_funds.forEach(fund => {
+            const investmentData = {
+              type: "investment",
+              amount: fund.investment_amount,
+              category: "mutual_funds",
+              description: `${fund.fund_name} - ${fund.amc}`,
+              current_value: fund.current_value,
+              investment_type: "mutual_funds",
+              units: fund.sip_amount ? Math.floor(fund.investment_amount / fund.sip_amount) : null,
+              price_per_unit: fund.sip_amount,
+              date: new Date().toISOString().split('T')[0],
+              currency: "INR",
+              payment_method: "bank_transfer"
+            }
+            investmentPromises.push(
+              fetch("/api/finances", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${idToken}`,
+                },
+                body: JSON.stringify(investmentData),
+              })
+            )
+          })
+        }
+
+        // Process stocks
+        if (data.investments.stocks.length > 0) {
+          data.investments.stocks.forEach(stock => {
+            const investmentData = {
+              type: "investment",
+              amount: stock.quantity * stock.average_price,
+              category: "stocks",
+              description: `${stock.company} (${stock.quantity} shares)`,
+              current_value: stock.quantity * stock.current_price,
+              investment_type: "stocks",
+              units: stock.quantity,
+              price_per_unit: stock.average_price,
+              date: new Date().toISOString().split('T')[0],
+              currency: "INR",
+              payment_method: "bank_transfer"
+            }
+            investmentPromises.push(
+              fetch("/api/finances", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${idToken}`,
+                },
+                body: JSON.stringify(investmentData),
+              })
+            )
+          })
+        }
+
+        // Process fixed deposits
+        if (data.investments.fixed_deposits.length > 0) {
+          data.investments.fixed_deposits.forEach(fd => {
+            const investmentData = {
+              type: "investment",
+              amount: fd.principal,
+              category: "fd",
+              description: `Fixed Deposit - ${fd.bank}`,
+              current_value: fd.principal, // FD current value is same as principal until maturity
+              investment_type: "fd",
+              date: new Date().toISOString().split('T')[0],
+              currency: "INR",
+              payment_method: "bank_transfer"
+            }
+            investmentPromises.push(
+              fetch("/api/finances", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${idToken}`,
+                },
+                body: JSON.stringify(investmentData),
+              })
+            )
+          })
+        }
+
+        // Wait for all investment API calls to complete
+        if (investmentPromises.length > 0) {
+          await Promise.all(investmentPromises)
+        }
+
         router.push("/chat")
       }
     } catch (error) {

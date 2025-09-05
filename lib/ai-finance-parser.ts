@@ -3,8 +3,8 @@ export interface FinanceEntry {
   amount: number
   category: string
   description: string
-  date: string
-  confidence: number
+  date?: string
+  confidence?: number
   currency?: string
   payment_method?: string
   merchant?: string
@@ -81,7 +81,7 @@ export function parseFinanceFromMessage(message: string): ParsedFinanceResult {
 
   // Calculate overall confidence
   if (result.entries.length > 0) {
-    result.confidence = result.entries.reduce((sum, entry) => sum + entry.confidence, 0) / result.entries.length
+    result.confidence = result.entries.reduce((sum, entry) => sum + (entry.confidence || 0.5), 0) / result.entries.length
   }
 
   return result
@@ -129,7 +129,7 @@ function analyzeAmountContext(
     date,
     confidence,
     currency: amountInfo.currency,
-    payment_method: determinePaymentMethod(context),
+    payment_method: determinePaymentMethod(context) !== 'unknown' ? determinePaymentMethod(context) : undefined,
     merchant: extractMerchant(context)
   }
 }

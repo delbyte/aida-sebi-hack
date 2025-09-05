@@ -1457,7 +1457,7 @@ export default function Dashboard() {
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-current-value" className="text-right">
+                <Label htmlFor="edit-current-value" className="text-right whitespace-nowrap">
                   Current Value
                 </Label>
                 <Input

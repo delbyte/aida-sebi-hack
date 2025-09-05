@@ -51,7 +51,7 @@ export function parseAIResponse(response: string): ParsedAIResponse {
   // Calculate overall confidence
   if (result.financeEntries.length > 0 || result.memoryUpdates.length > 0 || result.investmentUpdates.length > 0) {
     const financeConfidence = result.financeEntries.length > 0
-      ? result.financeEntries.reduce((sum, entry) => sum + entry.confidence, 0) / result.financeEntries.length
+      ? result.financeEntries.reduce((sum, entry) => sum + (entry.confidence || 0.8), 0) / result.financeEntries.length
       : 1.0
 
     const memoryConfidence = result.memoryUpdates.length > 0
@@ -87,8 +87,8 @@ function parseFinanceEntries(response: string): FinanceEntry[] {
         date: entryData.date || new Date().toISOString().split('T')[0],
         confidence: Number(entryData.confidence) || 0.8,
         currency: entryData.currency || 'INR',
-        payment_method: entryData.payment_method,
-        merchant: entryData.merchant
+        payment_method: entryData.payment_method || undefined,
+        merchant: entryData.merchant || undefined
       }
       entries.push(entry)
     } catch (error) {
@@ -110,8 +110,8 @@ function parseFinanceEntries(response: string): FinanceEntry[] {
           date: entryData.date || new Date().toISOString().split('T')[0],
           confidence: Number(entryData.confidence) || 0.8,
           currency: entryData.currency || 'INR',
-          payment_method: entryData.payment_method,
-          merchant: entryData.merchant
+          payment_method: entryData.payment_method || undefined,
+          merchant: entryData.merchant || undefined
         }
         entries.push(entry)
       }
@@ -223,9 +223,6 @@ function cleanResponseText(response: string): string {
   return cleanText
 }
 
-/**
- * Validate parsed finance entry
- */
 export function validateFinanceEntry(entry: FinanceEntry): boolean {
   // Required fields
   if (!entry.type || !['income', 'expense', 'investment'].includes(entry.type)) return false

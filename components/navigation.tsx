@@ -128,25 +128,6 @@ export function Navigation() {
                     </div>
                   </div>
 
-                  <div className="py-1">
-                    <Link
-                      href="/settings"
-                      className="flex items-center px-3 py-2 text-sm text-black hover:bg-gray-100 transition-colors"
-                      onClick={() => setIsDropdownOpen(false)}
-                    >
-                      <UserIcon className="mr-2 h-4 w-4 text-black" />
-                      Profile
-                    </Link>
-                    <Link
-                      href="/dashboard"
-                      className="flex items-center px-3 py-2 text-sm text-black hover:bg-gray-100 transition-colors"
-                      onClick={() => setIsDropdownOpen(false)}
-                    >
-                      <CreditCard className="mr-2 h-4 w-4 text-black" />
-                      Finances
-                    </Link>
-                  </div>
-
                   <div className="border-t border-gray-200 py-1">
                     <button
                       onClick={handleSignOut}

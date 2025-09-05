@@ -100,7 +100,11 @@ export default function ChatUI() {
     setInput("")
     setLoading(true)
 
-    try {
+    const maxRetries = 2
+    let retryCount = 0
+
+    while (retryCount <= maxRetries) {
+      try {
       // Get the current user's ID token
       const user = auth.currentUser
       if (!user) {
@@ -151,12 +155,22 @@ export default function ChatUI() {
               setNotifications(prev => [notification, ...prev])
             })
           }
+          setLoading(false)
+          return // Success, exit the retry loop
         }
       } else if (res.status === 500) {
-        // Show educational error message on 500
-        setMessages((m) => [...m, { 
-          role: "assistant", 
-          content: `Sorry, our servers are experiencing high traffic right now. While you wait, here are some great resources to learn more about investing:
+        retryCount++
+        if (retryCount <= maxRetries) {
+          // Wait 1 second before retrying
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          continue // Retry the loop
+        } else {
+          // All retries failed, show educational message
+          const errorData = await res.json().catch(() => ({}))
+          if (errorData.isTimeout) {
+            setMessages((m) => [...m, { 
+              role: "assistant", 
+              content: `Sorry, the AI service is taking longer than expected to respond. This usually happens during peak times. While you wait, here are some great resources to learn more about investing:
 
 ## Educational Resources for Retail Investors
 
@@ -176,16 +190,53 @@ export default function ChatUI() {
 - **Fundamental Analysis** - Evaluating company financials
 - **Technical Analysis** - Reading charts and trends
 
-Please try sending your message again in a few moments! 🚀` 
-        }])
+Please try sending your message again in a few moments!` 
+            }])
+          } else {
+            // Show general educational error message
+            setMessages((m) => [...m, { 
+              role: "assistant", 
+              content: `Sorry, our servers are experiencing high traffic right now! While you wait, here are some great resources to learn more about investing:
+
+## Educational Resources for Retail Investors
+
+### **Indian Financial Education**
+- **[Zerodha Varsity](https://zerodha.com/varsity/)** - Free courses on stock market basics, technical analysis, and more
+- **[NSE IFSC Learning](https://www.nseifsc.com/learning)** - Comprehensive modules on financial markets
+- **[Moneycontrol Message Board](https://mmb.moneycontrol.com/)** - Community discussions and insights
+
+### **Global Learning Platforms**
+- **[Khan Academy - Investing](https://www.khanacademy.org/economics-finance-domain/core-finance/pf-investing-101)** - Free investing fundamentals
+- **[Investopedia](https://www.investopedia.com/)** - Dictionary and tutorials for financial terms
+- **[Coursera - Finance Courses](https://www.coursera.org/browse/business/finance)** - Professional courses from top universities
+
+### **Key Topics to Explore**
+- **Portfolio Diversification** - Don't put your all eggs in one basket
+- **Risk Management** - Understanding volatility and market cycles  
+- **Fundamental Analysis** - Evaluating company financials
+- **Technical Analysis** - Reading charts and trends
+
+Please try sending your message again in a few moments!` 
+            }])
+          }
+          setLoading(false)
+        }
       } else {
         // Handle other errors silently
+        setLoading(false)
+        return
       }
     } catch (error) {
-      // Handle network errors - show educational message
-      setMessages((m) => [...m, { 
-        role: "assistant", 
-        content: `Sorry, our servers are experiencing high traffic right now. While you wait, here are some great resources to learn more about investing:
+      retryCount++
+      if (retryCount <= maxRetries) {
+        // Wait 1 second before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        continue // Retry the loop
+      } else {
+        // All retries failed, show educational message
+        setMessages((m) => [...m, { 
+          role: "assistant", 
+          content: `Sorry, our servers are experiencing high traffic right now. While you wait, here are some great resources to learn more about investing:
 
 ## Educational Resources for Retail Investors
 
@@ -206,9 +257,13 @@ Please try sending your message again in a few moments! 🚀`
 - **Technical Analysis** - Reading charts and trends\\.
 
 Please try sending your message again in a few moments!` 
-      }])
+        }])
+        setLoading(false)
+        return
+      }
     } finally {
       setLoading(false)
+    }
     }
   }
 
@@ -240,7 +295,38 @@ Please try sending your message again in a few moments!`
                   >
                     {m.role === "assistant" ? (
                       <div className="prose prose-sm max-w-none dark:prose-invert">
-                        <ReactMarkdown>
+                        <ReactMarkdown
+                          components={{
+                            a: ({ children, href }) => (
+                              <a 
+                                href={href} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 underline font-medium"
+                              >
+                                {children}
+                              </a>
+                            ),
+                            p: ({ children }) => (
+                              <p className="mb-2 last:mb-0">{children}</p>
+                            ),
+                            ul: ({ children }) => (
+                              <ul className="mb-2 last:mb-0 ml-4 list-disc">{children}</ul>
+                            ),
+                            li: ({ children }) => (
+                              <li className="mb-1">{children}</li>
+                            ),
+                            strong: ({ children }) => (
+                              <strong className="font-semibold text-foreground">{children}</strong>
+                            ),
+                            h2: ({ children }) => (
+                              <h2 className="text-lg font-semibold mb-2 mt-4 text-foreground">{children}</h2>
+                            ),
+                            h3: ({ children }) => (
+                              <h3 className="text-md font-semibold mb-2 mt-3 text-foreground">{children}</h3>
+                            )
+                          }}
+                        >
                           {m.content}
                         </ReactMarkdown>
                       </div>

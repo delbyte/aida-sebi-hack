@@ -240,6 +240,7 @@ export async function POST(req: Request) {
       investment_type: body.investment_type || null,
       units: body.units ? Number(body.units) : null,
       price_per_unit: body.price_per_unit ? Number(body.price_per_unit) : null,
+      current_value: body.current_value ? Number(body.current_value) : null,
 
       // Recurring fields
       recurring: body.recurring || false,

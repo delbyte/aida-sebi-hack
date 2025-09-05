@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts"
 import { auth } from "@/lib/firebase"
 import { useAuthState } from "react-firebase-hooks/auth"
@@ -79,6 +80,14 @@ export default function Dashboard() {
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [isSubmittingInvestment, setIsSubmittingInvestment] = React.useState(false)
   const [editingInvestment, setEditingInvestment] = React.useState<any>(null)
+
+  // Dialog states
+  const [editTransaction, setEditTransaction] = React.useState<any>(null)
+  const [editInvestment, setEditInvestment] = React.useState<any>(null)
+  const [deleteItem, setDeleteItem] = React.useState<any>(null)
+  const [isEditTransactionOpen, setIsEditTransactionOpen] = React.useState(false)
+  const [isEditInvestmentOpen, setIsEditInvestmentOpen] = React.useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
 
   const finances = data?.finances || []
 
@@ -450,8 +459,6 @@ export default function Dashboard() {
   }
 
   async function deleteInvestment(investmentId: string) {
-    if (!confirm('Are you sure you want to delete this investment?')) return
-
     try {
       const user = auth.currentUser
       if (!user) return
@@ -469,6 +476,81 @@ export default function Dashboard() {
       }
     } catch (error) {
       // Error deleting investment
+    }
+  }
+
+  async function updateTransaction(transactionId: string, updates: any) {
+    try {
+      const user = auth.currentUser
+      if (!user) return
+
+      const idToken = await user.getIdToken()
+      const response = await fetch(`/api/finances/${transactionId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
+        },
+        body: JSON.stringify(updates),
+      })
+
+      if (response.ok) {
+        await mutate() // Refresh data
+        setIsEditTransactionOpen(false)
+        setEditTransaction(null)
+      }
+    } catch (error) {
+      // Error updating transaction
+    }
+  }
+
+  async function updateInvestment(investmentId: string, updates: any) {
+    try {
+      const user = auth.currentUser
+      if (!user) return
+
+      const idToken = await user.getIdToken()
+      const response = await fetch(`/api/finances/${investmentId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
+        },
+        body: JSON.stringify(updates),
+      })
+
+      if (response.ok) {
+        await mutate() // Refresh data
+        setIsEditInvestmentOpen(false)
+        setEditInvestment(null)
+      }
+    } catch (error) {
+      // Error updating investment
+    }
+  }
+
+  async function deleteItemConfirmed() {
+    if (!deleteItem) return
+
+    try {
+      const user = auth.currentUser
+      if (!user) return
+
+      const idToken = await user.getIdToken()
+      const response = await fetch(`/api/finances/${deleteItem.id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${idToken}`,
+        },
+      })
+
+      if (response.ok) {
+        await mutate() // Refresh data
+        setIsDeleteDialogOpen(false)
+        setDeleteItem(null)
+      }
+    } catch (error) {
+      // Error deleting item
     }
   }
 
@@ -1049,7 +1131,7 @@ export default function Dashboard() {
       </Card>
 
       {/* Recent Transactions */}
-      <Card>
+      <Card className="mb-8">
         <CardHeader>
           <CardTitle>Recent Transactions</CardTitle>
         </CardHeader>
@@ -1097,7 +1179,7 @@ export default function Dashboard() {
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex items-center gap-2">
                     <p className={`font-semibold ${
                       item.type === 'income' ? 'text-green-600 dark:text-green-400' :
                       item.type === 'expense' ? 'text-red-600 dark:text-red-400' :
@@ -1107,6 +1189,28 @@ export default function Dashboard() {
                       {item.currency === 'INR' ? '₹' : item.currency === 'USD' ? '$' : '€'}
                       {item.amount?.toLocaleString()}
                     </p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEditTransaction(item)
+                        setIsEditTransactionOpen(true)
+                      }}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setDeleteItem(item)
+                        setIsDeleteDialogOpen(true)
+                      }}
+                      className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -1194,10 +1298,24 @@ export default function Dashboard() {
                         </p>
                       </div>
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
-                        onClick={() => deleteInvestment(item.id)}
-                        className="text-red-600 hover:text-red-700"
+                        onClick={() => {
+                          setEditInvestment(item)
+                          setIsEditInvestmentOpen(true)
+                        }}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setDeleteItem(item)
+                          setIsDeleteDialogOpen(true)
+                        }}
+                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -1217,6 +1335,223 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Transaction Dialog */}
+      <Dialog open={isEditTransactionOpen} onOpenChange={setIsEditTransactionOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Transaction</DialogTitle>
+            <DialogDescription>
+              Make changes to your transaction here. Click save when you're done.
+            </DialogDescription>
+          </DialogHeader>
+          {editTransaction && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-type" className="text-right">
+                  Type
+                </Label>
+                <Select
+                  value={editTransaction.type}
+                  onValueChange={(value) => setEditTransaction({ ...editTransaction, type: value })}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="income">Income</SelectItem>
+                    <SelectItem value="expense">Expense</SelectItem>
+                    <SelectItem value="transfer">Transfer</SelectItem>
+                    <SelectItem value="investment">Investment</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-amount" className="text-right">
+                  Amount
+                </Label>
+                <Input
+                  id="edit-amount"
+                  type="number"
+                  value={editTransaction.amount}
+                  onChange={(e) => setEditTransaction({ ...editTransaction, amount: parseFloat(e.target.value) })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-category" className="text-right">
+                  Category
+                </Label>
+                <Input
+                  id="edit-category"
+                  value={editTransaction.category}
+                  onChange={(e) => setEditTransaction({ ...editTransaction, category: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-description" className="text-right">
+                  Description
+                </Label>
+                <Input
+                  id="edit-description"
+                  value={editTransaction.description || ''}
+                  onChange={(e) => setEditTransaction({ ...editTransaction, description: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              onClick={() => updateTransaction(editTransaction.id, {
+                type: editTransaction.type,
+                amount: editTransaction.amount,
+                category: editTransaction.category,
+                description: editTransaction.description
+              })}
+            >
+              Save changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Investment Dialog */}
+      <Dialog open={isEditInvestmentOpen} onOpenChange={setIsEditInvestmentOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Investment</DialogTitle>
+            <DialogDescription>
+              Make changes to your investment here. Click save when you're done.
+            </DialogDescription>
+          </DialogHeader>
+          {editInvestment && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-inv-name" className="text-right">
+                  Name
+                </Label>
+                <Input
+                  id="edit-inv-name"
+                  value={editInvestment.description?.split(' - ')[0] || editInvestment.description || ''}
+                  onChange={(e) => {
+                    const currentDesc = editInvestment.description || ''
+                    const parts = currentDesc.split(' - ')
+                    const newDesc = e.target.value + (parts[1] ? ' - ' + parts[1] : '')
+                    setEditInvestment({ ...editInvestment, description: newDesc })
+                  }}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-inv-amount" className="text-right">
+                  Amount
+                </Label>
+                <Input
+                  id="edit-inv-amount"
+                  type="number"
+                  value={editInvestment.amount}
+                  onChange={(e) => setEditInvestment({ ...editInvestment, amount: parseFloat(e.target.value) })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-current-value" className="text-right">
+                  Current Value
+                </Label>
+                <Input
+                  id="edit-current-value"
+                  type="number"
+                  value={editInvestment.current_value || editInvestment.amount}
+                  onChange={(e) => setEditInvestment({ ...editInvestment, current_value: parseFloat(e.target.value) })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-inv-category" className="text-right">
+                  Type
+                </Label>
+                <Select
+                  value={editInvestment.category || editInvestment.investment_type}
+                  onValueChange={(value) => setEditInvestment({ ...editInvestment, category: value })}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="stocks">Stocks</SelectItem>
+                    <SelectItem value="mutual_funds">Mutual Funds</SelectItem>
+                    <SelectItem value="bonds">Bonds</SelectItem>
+                    <SelectItem value="fd">Fixed Deposit</SelectItem>
+                    <SelectItem value="gold">Gold</SelectItem>
+                    <SelectItem value="crypto">Cryptocurrency</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              onClick={() => updateInvestment(editInvestment.id, {
+                amount: editInvestment.amount,
+                current_value: editInvestment.current_value,
+                category: editInvestment.category,
+                description: editInvestment.description
+              })}
+            >
+              Save changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this {deleteItem?.type === 'investment' ? 'investment' : 'transaction'}? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {deleteItem && (
+            <div className="py-4">
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center space-x-4">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    deleteItem.type === 'income' ? 'bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-400' :
+                    deleteItem.type === 'expense' ? 'bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-400' :
+                    'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-400'
+                  }`}>
+                    {deleteItem.type === 'income' ? <TrendingUp className="w-5 h-5" /> :
+                     deleteItem.type === 'expense' ? <TrendingDown className="w-5 h-5" /> :
+                     <DollarSign className="w-5 h-5" />}
+                  </div>
+                  <div>
+                    <p className="font-medium">
+                      {deleteItem.category} - {deleteItem.description || 'No description'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {deleteItem.currency === 'INR' ? '₹' : deleteItem.currency === 'USD' ? '$' : '€'}
+                      {deleteItem.amount?.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={deleteItemConfirmed}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageLayout>
   )
 }

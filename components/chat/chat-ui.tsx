@@ -11,6 +11,7 @@ import Link from "next/link"
 import { auth } from "@/lib/firebase"
 import { onAuthStateChanged } from "firebase/auth"
 import { CheckCircle, TrendingUp, Brain, AlertCircle, DollarSign, MessageSquare, BarChart3 } from "lucide-react"
+import ReactMarkdown from "react-markdown"
 
 type Message = { role: "user" | "assistant"; content: string }
 
@@ -182,7 +183,15 @@ export default function ChatUI() {
                         : "bg-muted text-foreground"
                     }`}
                   >
-                    <div className="whitespace-pre-wrap">{m.content}</div>
+                    {m.role === "assistant" ? (
+                      <div className="prose prose-sm max-w-none dark:prose-invert">
+                        <ReactMarkdown>
+                          {m.content}
+                        </ReactMarkdown>
+                      </div>
+                    ) : (
+                      <div className="whitespace-pre-wrap">{m.content}</div>
+                    )}
                     <div className="text-xs opacity-60 mt-1">
                       {new Date().toLocaleTimeString([], {
                         hour: "2-digit",

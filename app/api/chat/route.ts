@@ -132,14 +132,14 @@ export async function POST(req: Request) {
       "Respond conversationally first, then add the structured data at the end."
     ].join("\n")
 
-    const prompt = messages.map((m: any) => `${m.role.toUpperCase()}: ${m.content}`).join("\n")
+    const prompt = messages.map((m: { role: string; content: string }) => `${m.role.toUpperCase()}: ${m.content}`).join("\n")
 
     const result = await Promise.race([
       model.generateContent(`${system}\n\nConversation:\n${prompt}\n\nA.I.D.A.:`),
-      new Promise((_, reject) => 
+      new Promise<never>((_, reject) => 
         setTimeout(() => reject(new Error('Gemini API timeout')), 25000)
       )
-    ]) as any
+    ]) as { response: any; promptFeedback?: any }
 
     // Handle cases where the response might be empty or blocked
     if (!result.response) {
@@ -385,6 +385,7 @@ export async function POST(req: Request) {
               }
             }
           } catch (error) {
+            console.error(`Failed to update investment for user ${userId}. Update: ${JSON.stringify(investmentUpdate)}`, error);
             // Error updating investment
           }
         }
@@ -396,7 +397,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       reply: cleanReply,
-      financeEntries: createdFinances,
+      createdFinanceEntries: createdFinances,
       memoryUpdates: memoryUpdates,
       metadata: {
         financeParsing: {

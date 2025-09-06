@@ -10,14 +10,14 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
 import { auth } from "@/lib/firebase"
 import { onAuthStateChanged } from "firebase/auth"
-import { CheckCircle, TrendingUp, Brain, AlertCircle, DollarSign, MessageSquare, BarChart3 } from "lucide-react"
+import { CheckCircle, TrendingUp, TrendingDown, Briefcase, Brain, AlertCircle, DollarSign, MessageSquare, BarChart3 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 
 type Message = { role: "user" | "assistant"; content: string }
 
 interface ChatResponse {
   reply: string
-  financeEntries?: Array<{
+  createdFinanceEntries?: Array<{
     id: string
     type: string
     amount: number
@@ -76,6 +76,7 @@ export default function ChatUI() {
     type: 'finance' | 'memory'
     message: string
     timestamp: Date
+    financeType?: 'income' | 'expense' | 'investment'
   }>>([])
 
   React.useEffect(() => {
@@ -128,14 +129,15 @@ export default function ChatUI() {
         if (data?.reply) {
           setMessages((m) => [...m, { role: "assistant", content: data.reply }])
 
-          // Handle finance entries
-          if (data.financeEntries && data.financeEntries.length > 0) {
-            data.financeEntries.forEach(entry => {
+          // Handle newly created finance entries
+          if (data.createdFinanceEntries && data.createdFinanceEntries.length > 0) {
+            data.createdFinanceEntries.forEach(entry => {
               const notification = {
                 id: `finance-${entry.id}`,
                 type: 'finance' as const,
                 message: `Added ${entry.type}: ₹${entry.amount} (${entry.category})`,
-                timestamp: new Date()
+                timestamp: new Date(),
+                financeType: entry.type as 'income' | 'expense' | 'investment'
               }
               setNotifications(prev => [notification, ...prev])
             })
@@ -447,12 +449,19 @@ Please try sending your message again in a few moments!`
               <h3 className="text-lg font-semibold mb-3">Live AI Activity</h3>
               <div className="space-y-2">
                 {notifications.map(notification => (
-                  <Alert key={notification.id} className="border-l-4 border-l-green-500 text-xs p-2">
+                  <Alert key={notification.id} className={`border-l-4 ${
+                    notification.financeType === 'income' ? 'border-l-green-500' :
+                    notification.financeType === 'expense' ? 'border-l-red-500' :
+                    notification.financeType === 'investment' ? 'border-l-blue-500' :
+                    'border-l-purple-500' // For memory
+                  } text-xs p-2`}>
                     <div className="flex items-center gap-2">
                       {notification.type === 'finance' ? (
-                        <TrendingUp className="w-4 h-4 text-green-600" />
+                        notification.financeType === 'income' ? <TrendingUp className="w-4 h-4 text-green-600" /> :
+                        notification.financeType === 'expense' ? <TrendingDown className="w-4 h-4 text-red-600" /> :
+                        <Briefcase className="w-4 h-4 text-blue-600" />
                       ) : (
-                        <Brain className="w-4 h-4 text-blue-600" />
+                        <Brain className="w-4 h-4 text-purple-600" />
                       )}
                       <AlertDescription>
                         {notification.message}

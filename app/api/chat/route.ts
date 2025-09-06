@@ -73,12 +73,12 @@ export async function POST(req: Request) {
     const system = [
       "You are A.I.D.A., an AI-powered Account Aggregator assistant with access to the user's COMPLETE financial history.",
       "",
-      "LANGUAGE HANDLING:",
-      "- If a user speaks in a vernacular language (Hindi, Tamil, Telugu, Bengali, Marathi, Gujarati, etc.), ALWAYS respond in the SAME language",
-      "- If a user speaks in English, respond in English",
-      "- If a user mixes languages, respond in the primary language they used",
-      "- Maintain the same language throughout the conversation",
-      "- Use appropriate regional terms and expressions when responding in vernacular languages",
+      "LANGUAGE HANDLING (CRITICAL):",
+      "1. Your response language MUST STRICTLY match the language of the user's LATEST message.",
+      "2. If the user's last message is in English, you MUST respond in English, even if the conversation history or financial data contains other languages.",
+      "3. If the user's last message is in a vernacular language (Hindi, Tamil, etc.), you MUST respond in that language.",
+      "4. If the user mixes languages in their last message, respond in the primary language they used.",
+      "5. NEVER switch languages unless the user switches first.",
       "",
       "CRITICAL: You have access to ALL the user's financial data - past investments, income, expenses, transfers, and transactions from their entire history.",
       "",
@@ -99,12 +99,15 @@ export async function POST(req: Request) {
       "",
       "FINANCE ENTRY CREATION:",
       "When users mention ANY financial transaction, expense, income, or spending:",
-      "1. ONLY create a finance entry if you have CLEAR, SPECIFIC information",
-      "2. Use this EXACT format at the end of your response:",
+      "1. ONLY create a finance entry if you have CLEAR, SPECIFIC information from the user's LATEST message.",
+      "2. CRITICAL: Do NOT create a FINANCE_ENTRY for a transaction already listed in the 'USER FINANCIAL CONTEXT'.",
+      "3. Use these EXACT formats at the end of your response:",
       'FINANCE_ENTRY: {"type":"expense","amount":500,"category":"Food","description":"Biryani"}',
-      "3. IMPORTANT: Only include fields that are EXPLICITLY mentioned or clearly implied",
-      "4. Do NOT guess payment methods, merchants, or other details",
-      "5. Leave fields blank rather than guessing",
+      'FINANCE_ENTRY: {"type":"income","amount":50000,"category":"Salary","description":"Monthly salary"}',
+      'FINANCE_ENTRY: {"type":"investment","amount":10000,"category":"stocks","description":"Invested in Reliance shares"}',
+      "4. IMPORTANT: Only include fields that are EXPLICITLY mentioned or clearly implied.",
+      "5. Do NOT guess payment methods, merchants, or other details.",
+      "6. Leave fields blank rather than guessing.",
       "",
       "2. ALWAYS create a memory for EVERY meaningful conversation using this EXACT format:",
       'UPDATE_MEMORY: {"content":"User mentioned their dad needs to pay them ₹100,000","category":"financial_expectations","importance":7}',
@@ -137,6 +140,25 @@ export async function POST(req: Request) {
         setTimeout(() => reject(new Error('Gemini API timeout')), 25000)
       )
     ]) as any
+
+    // Handle cases where the response might be empty or blocked
+    if (!result.response) {
+      const feedback = result.promptFeedback;
+      const blockReason = feedback?.blockReason || 'Unknown reason';
+      const safetyRatings = feedback?.safetyRatings?.map((r: any) => `${r.category}: ${r.probability}`).join(', ') || 'No ratings available';
+      const errorMessage = `The AI's response was blocked. Reason: ${blockReason}. [Safety ratings: ${safetyRatings}]`;
+      
+      console.error('AI response blocked:', feedback);
+
+      return NextResponse.json(
+        {
+          error: "The AI could not process your request due to safety constraints.",
+          details: errorMessage
+        },
+        { status: 400 } // Bad Request, as the user's prompt was the issue
+      );
+    }
+
     let aiResponse = result.response.text()
 
     // Parse AI response for finance entries and memory updates
@@ -176,6 +198,14 @@ export async function POST(req: Request) {
             // Generate transaction ID
             const transactionId = `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
             
+            const transactionDate = entry.date ? (entry.date === 'today' ? new Date() : new Date(entry.date)) : new Date();
+
+            // Validate the parsed date
+            if (isNaN(transactionDate.getTime())) {
+              console.error(`Invalid date detected for finance entry:`, entry);
+              continue; // Skip this entry as the date is invalid
+            }
+
             const financeData = {
               userId,
               transaction_id: transactionId,
@@ -187,10 +217,10 @@ export async function POST(req: Request) {
               description: entry.description,
               merchant: entry.merchant || null,
               
-              // Date & Time - Updated schema format
-              date: entry.date ? (entry.date === 'today' ? new Date() : new Date(entry.date)) : new Date(),
-              month: entry.date ? new Date(entry.date === 'today' ? new Date() : new Date(entry.date)).toISOString().substring(0, 7) : new Date().toISOString().substring(0, 7), // YYYY-MM
-              year: entry.date ? new Date(entry.date === 'today' ? new Date() : new Date(entry.date)).getFullYear().toString() : new Date().getFullYear().toString(),
+              // Date & Time - Cleaned up and validated
+              date: transactionDate,
+              month: transactionDate.toISOString().substring(0, 7), // YYYY-MM
+              year: transactionDate.getFullYear().toString(),
               
               // AI Context - Updated schema
               ai_generated: true,
@@ -254,6 +284,7 @@ export async function POST(req: Request) {
               created: true
             })
           } catch (error) {
+            console.error(`Failed to create memory for user ${userId}. Update: ${JSON.stringify(memoryUpdate)}`, error);
             // Continue processing other memories
           }
         }
@@ -315,28 +346,12 @@ export async function POST(req: Request) {
                 )
 
               if (matchingInvestment) {
-                let newValue = matchingInvestment.current_value || matchingInvestment.amount
-
-                if (investmentUpdate.changeType === 'absolute') {
-                  newValue = investmentUpdate.newValue!
-                } else if (investmentUpdate.changeType === 'percentage') {
-                  const changeAmount = (matchingInvestment.current_value || matchingInvestment.amount) * (investmentUpdate.newValue! / 100)
-                  newValue = (matchingInvestment.current_value || matchingInvestment.amount) + changeAmount
+                const currentValue = matchingInvestment.current_value || matchingInvestment.amount || 0 // Default to 0 to prevent NaN
+                if (typeof currentValue !== 'number' || isNaN(currentValue)) {
+                  // Skip update if the base value is not a valid number
+                  continue;
                 }
 
-                // Update the investment in database
-                await adminDb.collection('finances').doc(matchingInvestment.id).update({
-                  current_value: newValue,
-                  updated_at: new Date()
-                })
-
-                // Add update confirmation to AI response
-                aiResponse += `\n\n✅ Updated your investment "${matchingInvestment.description}" value to ₹${newValue.toLocaleString()}.`
-              }
-
-              if (matchingInvestment) {
-                const currentValue = matchingInvestment.current_value || matchingInvestment.amount || 0
-                
                 let newValue: number
                 if (investmentUpdate.changeType === 'percentage') {
                   newValue = currentValue * (1 + investmentUpdate.newValue / 100)
@@ -344,7 +359,13 @@ export async function POST(req: Request) {
                   newValue = investmentUpdate.newValue
                 }
 
-                await adminDb.collection("finances").doc(matchingInvestment.id).update({
+                if (typeof newValue !== 'number' || isNaN(newValue)) {
+                  // Skip update if the new value is not a valid number
+                  continue;
+                }
+
+                // Update the investment in database
+                await adminDb.collection('finances').doc(matchingInvestment.id).update({
                   current_value: newValue,
                   updatedAt: new Date(),
                   last_value_update: new Date(),
@@ -358,6 +379,9 @@ export async function POST(req: Request) {
                   oldValue: currentValue,
                   newValue: newValue
                 })
+
+                // Add update confirmation to AI response
+                aiResponse += `\n\n✅ Updated your investment "${matchingInvestment.description}" value to ₹${newValue.toLocaleString()}.`
               }
             }
           } catch (error) {

@@ -172,7 +172,13 @@ function determineTransactionType(context: string): 'income' | 'expense' | 'inve
     return 'investment'
   }
 
-  return incomeScore > expenseScore ? 'income' : 'expense'
+  if (expenseScore > incomeScore) {
+    return 'expense'
+  }
+  if (incomeScore > 0) {
+    return 'income'
+  }
+  return 'expense' // Default for ambiguity
 }
 
 /**

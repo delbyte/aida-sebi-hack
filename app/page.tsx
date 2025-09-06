@@ -97,6 +97,14 @@ export default function LandingPage() {
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-indigo-600/20 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute top-1/2 -left-40 w-96 h-96 bg-gradient-to-br from-indigo-400/15 to-purple-600/15 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
         <div className="absolute -bottom-40 right-1/4 w-64 h-64 bg-gradient-to-br from-cyan-400/10 to-blue-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }}></div>
+        
+        {/* Additional scattered blobs */}
+        <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-gradient-to-br from-blue-300/15 to-indigo-500/15 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute top-3/4 -right-20 w-80 h-80 bg-gradient-to-br from-purple-400/12 to-pink-500/12 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '3s' }}></div>
+        <div className="absolute bottom-1/4 left-1/3 w-64 h-64 bg-gradient-to-br from-indigo-300/18 to-blue-500/18 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '5s' }}></div>
+        <div className="absolute top-1/3 -left-32 w-88 h-88 bg-gradient-to-br from-cyan-400/10 to-indigo-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '6s' }}></div>
+        <div className="absolute bottom-1/2 right-1/2 w-56 h-56 bg-gradient-to-br from-blue-400/15 to-purple-600/15 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '7s' }}></div>
+        <div className="absolute top-2/3 left-2/3 w-60 h-60 bg-gradient-to-br from-indigo-300/12 to-cyan-500/12 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '8s' }}></div>
       </div>
 
       <section className="relative mx-auto max-w-6xl px-6 py-24 flex flex-col items-center text-center gap-12">

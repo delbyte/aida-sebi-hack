@@ -10,7 +10,7 @@ import { buildAIContext, formatContextForAI } from "@/lib/ai-context-builder"
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 const model = genAI.getGenerativeModel({
-  model: "gemini-2.0-flash-lite",
+  model: "gemini-2.5-flash",
   generationConfig: {
     temperature: 0.1, // Lower temperature for more consistent structured output
     topP: 0.8,
